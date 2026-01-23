@@ -1,0 +1,276 @@
+service: test-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    CLAUDE_API_KEY: ${env:CLAUDE_API_KEY, ''}
+    USER_POOL_ID: ${env:USER_POOL_ID, ''}
+    CLIENT_ID: ${env:CLIENT_ID, ''}
+    CLIENT_SECRET: ${env:CLIENT_SECRET, ''}
+    SESSIONS_TABLE: ${env:SESSIONS_TABLE, 'TestUserSessions'}
+    USERS_TABLE: ${env:USERS_TABLE, '${self:service}-users-${self:provider.stage}'}
+    COURSES_TABLE: ${self:service}-courses-${self:provider.stage}
+    ASSIGNMENTS_TABLE: ${self:service}-assignments-${self:provider.stage}
+    QUESTIONS_TABLE: ${self:service}-questions-${self:provider.stage}
+    ANSWERS_TABLE: ${self:service}-answers-${self:provider.stage}
+    RESULTS_TABLE: ${self:service}-results-${self:provider.stage}
+    ENROLLMENTS_TABLE: ${self:service}-enrollments-${self:provider.stage}
+    EXAMS_TABLE: ${self:service}-exams-${self:provider.stage}
+    FLASHCARDS_TABLE: ${self:service}-flashcards-${self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - cognito-idp:*
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+          Resource:
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-*-${self:provider.stage}'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-*-${self:provider.stage}/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*/index/*'
+
+functions:
+  api:
+    handler: index.handler
+    description: Express.js REST API for Course Management
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+resources:
+  Description: Test API - Course Management System with AI Integration
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-users-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: email-index
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    CoursesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-courses-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: courseId
+            AttributeType: S
+          - AttributeName: subjectId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: courseId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: subject-index
+            KeySchema:
+              - AttributeName: subjectId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    AssignmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-assignments-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: assignmentId
+            AttributeType: S
+          - AttributeName: courseId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: assignmentId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: course-index
+            KeySchema:
+              - AttributeName: courseId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    QuestionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-questions-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: questionId
+            AttributeType: S
+          - AttributeName: assignmentId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: questionId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: assignment-index
+            KeySchema:
+              - AttributeName: assignmentId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    AnswersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-answers-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: answerId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: answerId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    ResultsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-results-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: resultId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: resultId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user-results-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    EnrollmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-enrollments-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: enrollmentId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: courseId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: enrollmentId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user-courses-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: courseId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    ExamsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-exams-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: examId
+            AttributeType: S
+          - AttributeName: courseId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: examId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: course-exams-index
+            KeySchema:
+              - AttributeName: courseId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    FlashCardsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-flashcards-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: cardId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: cardId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user-cards-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+package:
+  individually: true
+  exclude:
+    - .git/**
+    - .gitignore
+    - README.md
+    - .env
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+    websocketPort: 3001
