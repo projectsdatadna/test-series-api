@@ -1,8 +1,8 @@
 require('dotenv').config();
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require('uuid');
-const { JWSauthenticate } = require("./JWTtoken");
-const { getUser } = require('./users');
+const { JWSauthenticate } = require("../../components/JWTtoken");
+const { getUser } = require('../users/controller');
 
 AWS.config.update({
   region: process.env.AWS_REGION || 'ap-south-1',

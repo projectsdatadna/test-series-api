@@ -1,12 +1,12 @@
 require('dotenv').config();
 const AWS = require("aws-sdk");
 const { v4: uuidv4 } = require('uuid');
-const { JWSauthenticate } = require("./JWTtoken");
+const { JWSauthenticate } = require("../../components/JWTtoken");
 
 AWS.config.update({
   region: process.env.AWS_REGION || 'ap-south-1',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
