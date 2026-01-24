@@ -107,6 +107,7 @@ async function jwtLoginEmail (event) {
     const userDetails = await cognito.adminGetUser(getUserParams).promise();
     const userId = userDetails.UserAttributes.find(attr => attr.Name === 'sub').Value;
     const userName = userDetails.UserAttributes.find(attr => attr.Name === 'name')?.Value || email;
+    const roleId = userDetails.UserAttributes.find(attr => attr.Name === 'custom:role_id')?.Value;
 
     if (!userId) {
       return createResponse(500, {
@@ -183,7 +184,8 @@ async function jwtLoginEmail (event) {
         user: {
           user_id: userId,
           email: email,
-          username: userName
+          username: userName,
+          role_id: roleId
         },
         
         // Session info (optional, for tracking)

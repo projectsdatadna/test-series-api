@@ -40,4 +40,7 @@ createRoute('/get/attribute/verification', jwtAuthController.jwtResendPhoneAttri
 createRoute('/reset/password/email', jwtAuthController.jwtResetPasswordWithOld);
 createRoute('/reset/password/phone', jwtAuthController.jwtResetPasswordWithOldPhone);
 
+// Profile Setup Route
+createRoute('/profile-setup', authController.profileSetup);
+
 module.exports = router;

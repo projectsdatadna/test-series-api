@@ -988,6 +988,157 @@ async function phoneForgetResetPassword (event)  {
 };
 
 
+// Profile Setup - Store user preferences and educational details
+async function profileSetup(event) {
+  try {
+    if (!event || !event.body) {
+      return createResponse(400, {
+        success: false,
+        message: 'Request body is required'
+      });
+    }
+
+    const { userId, schoolName, grades, subjects, experienceLevel, preferences } = JSON.parse(event.body);
+
+    // Validate required fields
+    if (!userId) {
+      return createResponse(400, {
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Fetch roleId from user sessions table
+    const sessionsTable = SESSIONS_TABLE || 'TestUserSessions';
+    
+    let roleId = null;
+    try {
+      const sessionResult = await dynamoDB.query({
+        TableName: sessionsTable,
+        KeyConditionExpression: 'user_id = :userId',
+        ExpressionAttributeValues: {
+          ':userId': userId
+        },
+        Limit: 1
+      }).promise();
+
+      if (sessionResult.Items && sessionResult.Items.length > 0) {
+        roleId = sessionResult.Items[0].role_id;
+      }
+    } catch (sessionError) {
+      console.error('Error fetching role from sessions table:', sessionError);
+    }
+
+    if (!roleId) {
+      return createResponse(400, {
+        success: false,
+        message: 'Role ID not found in user session. Please login again.'
+      });
+    }
+
+    if (!schoolName || typeof schoolName !== 'string' || schoolName.trim() === '') {
+      return createResponse(400, {
+        success: false,
+        message: 'School name is required and must be a non-empty string'
+      });
+    }
+
+    if (!grades || !Array.isArray(grades) || grades.length === 0) {
+      return createResponse(400, {
+        success: false,
+        message: 'At least one grade must be selected'
+      });
+    }
+
+    if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
+      return createResponse(400, {
+        success: false,
+        message: 'At least one subject must be selected'
+      });
+    }
+
+    if (!experienceLevel || !['beginner', 'intermediate', 'advanced'].includes(experienceLevel)) {
+      return createResponse(400, {
+        success: false,
+        message: 'Experience level must be one of: beginner, intermediate, advanced'
+      });
+    }
+
+    // Preferences are optional, default to empty array
+    const userPreferences = Array.isArray(preferences) ? preferences : [];
+
+    // Store profile setup in DynamoDB
+    const profileSetupId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const profileData = {
+      profileSetupId: profileSetupId,
+      user_id: userId,
+      role_id: roleId,
+      schoolName: schoolName.trim(),
+      grades: grades,
+      subjects: subjects,
+      experienceLevel: experienceLevel,
+      preferences: userPreferences,
+      created_at: timestamp,
+      updated_at: timestamp,
+      status: 'completed'
+    };
+
+    // Store in USERS_TABLE or a dedicated PROFILES_TABLE
+    const usersTable = process.env.USERS_TABLE;
+
+    await dynamoDB.update({
+      TableName: usersTable,
+      Key: { user_id: userId },
+      UpdateExpression: 'SET profileSetup = :profileSetup, updated_at = :updatedAt',
+      ExpressionAttributeValues: {
+        ':profileSetup': profileData,
+        ':updatedAt': timestamp
+      }
+    }).promise();
+
+    console.log('Profile setup completed for user:', userId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Profile setup completed successfully',
+      data: {
+        profileSetupId: profileSetupId,
+        userId: userId,
+        roleId: roleId,
+        schoolName: schoolName,
+        grades: grades,
+        subjects: subjects,
+        experienceLevel: experienceLevel,
+        preferences: userPreferences,
+        created_at: timestamp
+      }
+    });
+
+  } catch (error) {
+    console.error('Profile Setup Error:', error);
+
+    let message = 'Failed to complete profile setup';
+    let statusCode = 500;
+
+    if (error.code === 'ValidationException') {
+      message = 'Invalid data provided';
+      statusCode = 400;
+    } else if (error.code === 'ConditionalCheckFailedException') {
+      message = 'User not found';
+      statusCode = 404;
+    }
+
+    return createResponse(statusCode, {
+      success: false,
+      message: message,
+      error: error.message
+    });
+  }
+}
+
+
 module.exports = {
   emailsignUp,
   phoneSignUp,
@@ -996,5 +1147,6 @@ module.exports = {
   forgotPasswordEmail,
   forgotPasswordPhone,
   emailForgetResetPassword,
-  phoneForgetResetPassword
+  phoneForgetResetPassword,
+  profileSetup
 };
