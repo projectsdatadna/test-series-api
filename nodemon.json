@@ -1,0 +1,19 @@
+{
+  "exec": "serverless offline --config serverless.yml --stage dev",
+  "watch": [
+    "index.js",
+    "modules/",
+    "components/",
+    "routes/",
+    "helpers/",
+    "middleware/"
+  ],
+  "ignore": [
+    "node_modules/",
+    ".serverless/",
+    ".git/"
+  ],
+  "ext": "js,json",
+  "delay": 1000,
+  "verbose": true
+}

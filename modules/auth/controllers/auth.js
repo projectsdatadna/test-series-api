@@ -77,7 +77,7 @@ async function emailsignUp(event) {
     //   });
     // }
 
-    const { email, password, firstName, lastName } = JSON.parse(event.body);
+    const { email, password, firstName, lastName, roleId } = JSON.parse(event.body);
 
     // Validate required fields
     if (!email) {
@@ -139,11 +139,13 @@ async function emailsignUp(event) {
         {
           Name: 'name',
           Value: formattedName
+        },
+        {
+          Name:'custom:role_id',
+          Value: roleId
         }
       ]
     };
-
-    console.log("Cognito SignUp Params:", params)
 
 
     let cognitoResult;
@@ -200,17 +202,14 @@ async function emailsignUp(event) {
       email: email,
       firstName: firstName,
       lastName: lastName,
-      confirmationStatus: 'pending'
+      confirmationStatus: 'pending',
+      role_id: roleId || 'student',
     };
-
-    console.log("User Data: 1", userData)
 
     await dynamoDB.put({
       TableName: SESSIONS_TABLE,
       Item: userData
     }).promise();
-
-    console.log("User Data: 2", userData)
 
     return createResponse(201, {
       success: true,
@@ -267,7 +266,7 @@ async function phoneSignUp(event){
       });
     }
 
-    const { phoneNumber, firstName, lastName, password } = parsedBody;
+    const { phoneNumber, firstName, lastName, password, roleId } = parsedBody;
 
     // Validate required fields
     if (!phoneNumber) {
@@ -338,6 +337,10 @@ async function phoneSignUp(event){
         {
           Name: 'name',
           Value: formattedName
+        },
+        {
+          Name:'custom:role_id',
+          Value: roleId
         }
       ]
     };
@@ -393,7 +396,8 @@ async function phoneSignUp(event){
       phoneNumber: phoneNumber,
       firstName: firstName,
       lastName: lastName,
-      confirmationStatus: 'pending'
+      confirmationStatus: 'pending',
+      role_id: roleId
     };
 
     await dynamoDB.put({

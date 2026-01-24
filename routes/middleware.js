@@ -80,7 +80,7 @@ function corsConfig() {
   return {
     origin: process.env.ALLOWED_ORIGINS ? 
       process.env.ALLOWED_ORIGINS.split(',') : 
-      ['http://localhost:3001', 'http://localhost:3000'],
+      ['http://localhost:3001', 'http://localhost:3000','http://test-series-ui.s3-website-us-east-1.amazonaws.com'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
