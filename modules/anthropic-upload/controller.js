@@ -8,8 +8,6 @@ try {
   fetch = require('node-fetch');
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB - Anthropic API limit
-
 // Upload files to Anthropic
 async function uploadFile(req, res) {
   try {
@@ -31,20 +29,6 @@ async function uploadFile(req, res) {
       return res.status(400).json({
         success: false,
         message: 'No files provided'
-      });
-    }
-
-    // Check individual file sizes
-    const oversizedFiles = files.filter(f => f.size > MAX_FILE_SIZE);
-    if (oversizedFiles.length > 0) {
-      return res.status(413).json({
-        success: false,
-        message: 'One or more files exceed the 10MB size limit',
-        oversizedFiles: oversizedFiles.map(f => ({
-          filename: f.originalname,
-          size: `${(f.size / 1024 / 1024).toFixed(2)}MB`,
-          limit: '10MB'
-        }))
       });
     }
 
@@ -82,16 +66,6 @@ async function uploadFile(req, res) {
     const bodySize = body.length;
 
     console.log(`Multipart body size: ${(bodySize / 1024 / 1024).toFixed(2)}MB`);
-
-    if (bodySize > MAX_FILE_SIZE) {
-      return res.status(413).json({
-        success: false,
-        message: 'Total payload size exceeds 10MB limit',
-        totalSize: `${(bodySize / 1024 / 1024).toFixed(2)}MB`,
-        limit: '10MB',
-        suggestion: 'Please upload fewer files or smaller files'
-      });
-    }
 
     console.log(`Sending ${files.length} file(s) to Anthropic API...`);
 
