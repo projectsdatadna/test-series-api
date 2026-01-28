@@ -37,6 +37,8 @@ const answersRoutes = require("../modules/answers/routes");
 const errorBankRoutes = require("../modules/error-bank/routes");
 const resultsRoutes = require("../modules/results/routes");
 const claudeAIRoutes = require("../modules/claude-ai/routes");
+const anthropicUploadRoutes = require("../modules/anthropic-upload/routes");
+const adaptiveContentRoutes = require("../modules/adaptive-content/routes");
 
 /**
  * Register all routes with the Express app
@@ -95,6 +97,8 @@ function registerRoutes(app) {
 
   // ============ AI INTEGRATION ============
   app.use('/', claudeAIRoutes); // Claude AI routes use root paths
+  app.use('/anthropic', anthropicUploadRoutes); // Anthropic file upload routes
+  app.use('/adaptive-content', adaptiveContentRoutes); // Adaptive content generation routes
 
   // ============ DEBUG & DOCUMENTATION ROUTES ============
   if (process.env.NODE_ENV !== 'production') {
@@ -103,7 +107,7 @@ function registerRoutes(app) {
   }
 
   console.log('✅ All routes registered successfully');
-  console.log(`📊 Total modules: 31`);
+  console.log(`📊 Total modules: 34`);
   console.log(`🏗️ Architecture: Centralized route management`);
 }
 
@@ -113,7 +117,7 @@ function registerRoutes(app) {
  */
 function getRouteSummary() {
   return {
-    totalModules: 31,
+    totalModules: 34,
     categories: {
       'Core Auth & Users': ['auth', 'users', 'roles', 'profiles', 'sessions'],
       'System Management': ['audit-logs'],
@@ -124,7 +128,7 @@ function getRouteSummary() {
       'Exam Management': ['exams', 'questions', 'question-options', 'exam-questions', 'answers'],
       'Learning Tools': ['flashcards', 'user-notes'],
       'Analytics & Reporting': ['material-analytics', 'error-bank', 'results'],
-      'AI Integration': ['claude-ai']
+      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content']
     },
     routePatterns: {
       'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*'],
