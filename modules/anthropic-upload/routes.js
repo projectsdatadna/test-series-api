@@ -8,7 +8,7 @@ const router = express.Router();
 // Configure multer for memory storage with 50MB limit (for multiple files)
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB per file
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB per file
 });
 
 // JWT verification middleware for Express

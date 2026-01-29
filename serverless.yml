@@ -260,12 +260,21 @@ resources:
               ProjectionType: ALL
 
 package:
-  individually: true
   exclude:
     - .git/**
     - .gitignore
     - README.md
     - .env
+    - .env.example
+    - node_modules/.bin/**
+    - node_modules/*/test/**
+    - node_modules/*/tests/**
+    - node_modules/*/.github/**
+    - .vscode/**
+    - .idea/**
+    - coverage/**
+    - dist/**
+    - build/**
 
 plugins:
   - serverless-offline

@@ -45,12 +45,6 @@ async function uploadFile(req, res) {
     // Add each file to the multipart body
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      
-      console.log(`Adding file ${i + 1}/${files.length}:`, {
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`
-      });
 
       parts.push(Buffer.from(`--${boundary}\r\n`));
       parts.push(Buffer.from(`Content-Disposition: form-data; name="file"; filename="${file.originalname}"\r\n`));
