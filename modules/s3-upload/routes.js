@@ -1,10 +1,10 @@
 const express = require('express');
-const { getUploadUrls, confirmUpload, uploadFile } = require('./controller');
+const { generatePresignedUrl, processUploadedFile, uploadToAnthropicFromS3 } = require('./controller');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
 
 const router = express.Router();
 
-// JWT verification middleware for Express
+// JWT verification middleware
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
@@ -55,20 +55,32 @@ const verifyJWT = async (req, res, next) => {
   }
 };
 
-// NEW: Get pre-signed URLs for S3 upload
-router.post('/get-upload-urls', verifyJWT, getUploadUrls);
-
-// NEW: Confirm upload and process files from S3
-router.post('/confirm-upload', verifyJWT, confirmUpload);
-
-// LEGACY: Keep old endpoint for backward compatibility (files < 5MB)
-// This will still work for small files
-const multer = require('multer');
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit for direct upload
+// Handle OPTIONS preflight requests
+router.options('/generate-presigned-url', (req, res) => {
+  res.sendStatus(200);
 });
 
-router.post('/upload-files-direct', verifyJWT, upload.any(), uploadFile);
+router.options('/process-file', (req, res) => {
+  res.sendStatus(200);
+});
+
+router.options('/upload-to-anthropic', (req, res) => {
+  res.sendStatus(200);
+});
+
+// Generate pre-signed URL for direct S3 upload
+// POST /s3-upload/generate-presigned-url
+// Body: { fileName, fileType, fileSize }
+router.post('/generate-presigned-url', verifyJWT, generatePresignedUrl);
+
+// Process file after upload to S3
+// POST /s3-upload/process-file
+// Body: { fileKey, fileName, fileType }
+router.post('/process-file', verifyJWT, processUploadedFile);
+
+// Upload file from S3 to Anthropic
+// POST /s3-upload/upload-to-anthropic
+// Body: { fileKey }
+router.post('/upload-to-anthropic', verifyJWT, uploadToAnthropicFromS3);
 
 module.exports = router;

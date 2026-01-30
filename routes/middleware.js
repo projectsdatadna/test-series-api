@@ -126,6 +126,11 @@ function securityHeaders(req, res, next) {
  * Request validation middleware
  */
 function validateRequest(req, res, next) {
+  // Skip validation for file upload routes and OPTIONS requests
+  if (req.method === 'OPTIONS' || req.path.includes('/anthropic/upload') || req.path.includes('/adaptive-content')) {
+    return next();
+  }
+  
   // Basic request validation
   if (req.method === 'POST' || req.method === 'PUT') {
     if (!req.body || Object.keys(req.body).length === 0) {

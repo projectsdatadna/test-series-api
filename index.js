@@ -28,9 +28,11 @@ app.use(cors(corsConfig()));
 // Request logging
 app.use(requestLogger);
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing - increased limits for large file uploads (100MB)
+// Important: These must come BEFORE the routes to handle large payloads
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
 
 // ============ HEALTH CHECK ROUTE ============
 app.get("/hello", (req, res) => {
@@ -54,4 +56,13 @@ app.use(notFoundHandler);
 // Global error handler
 app.use(errorHandler);
 
-module.exports.handler = serverless(app);
+// Export handler with increased payload size
+module.exports.handler = serverless(app, {
+  binary: ['application/octet-stream', 'image/*', 'application/pdf'],
+  request(request) {
+    // Log request details for debugging
+    if (request.body) {
+      console.log(`Request body size: ${Buffer.byteLength(request.body)} bytes`);
+    }
+  }
+});
