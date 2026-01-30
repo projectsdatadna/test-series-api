@@ -40,6 +40,8 @@ const claudeAIRoutes = require("../modules/claude-ai/routes");
 const anthropicUploadRoutes = require("../modules/anthropic-upload/routes");
 const adaptiveContentRoutes = require("../modules/adaptive-content/routes");
 const s3UploadRoutes = require("../modules/s3-upload/routes");
+const fileHierarchyRoutes = require("../modules/file-hierarchy/routes");
+const bookUploadRoutes = require("../modules/book-upload/routes");
 
 /**
  * Register all routes with the Express app
@@ -67,6 +69,7 @@ function registerRoutes(app) {
   app.use('/chapters', chaptersRoutes);
   app.use('/sections', sectionsRoutes);
   app.use('/', hierarchyRoutes); // Hierarchy linking routes use root paths
+  app.use('/hierarchy', fileHierarchyRoutes); // File hierarchy with Syllabus/Standards/Subjects/Chapters/BookFiles
 
   // ============ CONTENT MANAGEMENT ============
   app.use('/materials', materialsRoutes);
@@ -101,6 +104,7 @@ function registerRoutes(app) {
   app.use('/anthropic', anthropicUploadRoutes); // Anthropic file upload routes
   app.use('/adaptive-content', adaptiveContentRoutes); // Adaptive content generation routes
   app.use('/s3-upload', s3UploadRoutes); // S3 pre-signed URL routes for large file uploads
+  app.use('/book-upload', bookUploadRoutes); // Book upload with chapter creation
 
   // ============ DEBUG & DOCUMENTATION ROUTES ============
   if (process.env.NODE_ENV !== 'production') {
@@ -109,7 +113,7 @@ function registerRoutes(app) {
   }
 
   console.log('✅ All routes registered successfully');
-  console.log(`📊 Total modules: 35`);
+  console.log(`📊 Total modules: 37`);
   console.log(`🏗️ Architecture: Centralized route management`);
 }
 
@@ -119,21 +123,21 @@ function registerRoutes(app) {
  */
 function getRouteSummary() {
   return {
-    totalModules: 35,
+    totalModules: 37,
     categories: {
       'Core Auth & Users': ['auth', 'users', 'roles', 'profiles', 'sessions'],
       'System Management': ['audit-logs'],
       'Course Management': ['enrollments', 'courses', 'course-bundles'],
-      'Educational Hierarchy': ['standards', 'subjects', 'chapters', 'sections', 'hierarchy'],
+      'Educational Hierarchy': ['standards', 'subjects', 'chapters', 'sections', 'hierarchy', 'file-hierarchy'],
       'Content Management': ['materials', 'material-views', 'material-mappings', 'material-tags', 'localized-content'],
       'Assignment Management': ['assignments', 'assignment-questions', 'assignment-question-options'],
       'Exam Management': ['exams', 'questions', 'question-options', 'exam-questions', 'answers'],
       'Learning Tools': ['flashcards', 'user-notes'],
       'Analytics & Reporting': ['material-analytics', 'error-bank', 'results'],
-      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 's3-upload']
+      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 's3-upload', 'book-upload']
     },
     routePatterns: {
-      'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*'],
+      'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*', '/hierarchy/*', '/book-upload/*'],
       'Root Level Routes': ['hierarchy', 'user-notes', 'answers', 'claude-ai'],
       'Mixed Path Routes': ['assignment-questions', 'question-options', 'exam-questions']
     }

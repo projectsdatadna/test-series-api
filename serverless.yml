@@ -24,6 +24,11 @@ provider:
     ENROLLMENTS_TABLE: ${self:service}-enrollments-${self:provider.stage}
     EXAMS_TABLE: ${self:service}-exams-${self:provider.stage}
     FLASHCARDS_TABLE: ${self:service}-flashcards-${self:provider.stage}
+    SYLLABUS_TABLE: ${env:SYLLABUS_TABLE, 'SyllabusTable'}
+    STANDARDS_TABLE: ${env:STANDARDS_TABLE, 'StandardsTable'}
+    SUBJECTS_TABLE: ${env:SUBJECTS_TABLE, 'SubjectsTable'}
+    CHAPTERS_TABLE: ${env:CHAPTERS_TABLE, 'ChaptersTable'}
+    BOOK_FILES_TABLE: ${env:BOOK_FILES_TABLE, 'BookFilesTable'}
   iam:
     role:
       statements:
@@ -49,6 +54,16 @@ provider:
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-*-${self:provider.stage}/index/*'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SyllabusTable'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SyllabusTable/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/StandardsTable'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/StandardsTable/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SubjectsTable'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SubjectsTable/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/ChaptersTable'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/ChaptersTable/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/BookFilesTable'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/BookFilesTable/index/*'
 
 functions:
   api:
