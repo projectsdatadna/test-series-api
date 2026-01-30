@@ -1,7 +1,5 @@
 service: test-api
 
-frameworkVersion: '3'
-
 provider:
   name: aws
   runtime: nodejs18.x
@@ -15,6 +13,7 @@ provider:
     USER_POOL_ID: ${env:USER_POOL_ID, ''}
     CLIENT_ID: ${env:CLIENT_ID, ''}
     CLIENT_SECRET: ${env:CLIENT_SECRET, ''}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME, 'test-series-books'}
     SESSIONS_TABLE: ${env:SESSIONS_TABLE, 'TestUserSessions'}
     USERS_TABLE: ${env:USERS_TABLE, '${self:service}-users-${self:provider.stage}'}
     COURSES_TABLE: ${self:service}-courses-${self:provider.stage}
