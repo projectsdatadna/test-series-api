@@ -7,12 +7,7 @@
  * Request logging middleware
  */
 function requestLogger(req, res, next) {
-  const timestamp = new Date().toISOString();
-  const method = req.method;
-  const url = req.originalUrl;
-  const userAgent = req.get('User-Agent') || 'Unknown';
-  
-  console.log(`[${timestamp}] ${method} ${url} - ${userAgent}`);
+  // Logging disabled for cleaner output
   next();
 }
 
@@ -20,7 +15,10 @@ function requestLogger(req, res, next) {
  * Error handling middleware
  */
 function errorHandler(err, req, res, next) {
-  console.error('Route Error:', err);
+  // Log only critical errors
+  if (err.status >= 500) {
+    console.error('Server Error:', err.message);
+  }
   
   // Default error response
   const errorResponse = {

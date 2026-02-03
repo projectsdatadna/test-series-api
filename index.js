@@ -58,11 +58,5 @@ app.use(errorHandler);
 
 // Export handler with increased payload size
 module.exports.handler = serverless(app, {
-  binary: ['application/octet-stream', 'image/*', 'application/pdf'],
-  request(request) {
-    // Log request details for debugging
-    if (request.body) {
-      console.log(`Request body size: ${Buffer.byteLength(request.body)} bytes`);
-    }
-  }
+  binary: ['application/octet-stream', 'image/*', 'application/pdf']
 });

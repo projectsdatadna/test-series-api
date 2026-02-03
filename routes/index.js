@@ -42,6 +42,7 @@ const adaptiveContentRoutes = require("../modules/adaptive-content/routes");
 const s3UploadRoutes = require("../modules/s3-upload/routes");
 const fileHierarchyRoutes = require("../modules/file-hierarchy/routes");
 const bookUploadRoutes = require("../modules/book-upload/routes");
+const adaptiveContentLibraryRoutes = require("../modules/adaptive-content-library/routes");
 
 /**
  * Register all routes with the Express app
@@ -68,7 +69,6 @@ function registerRoutes(app) {
   app.use('/subjects', subjectsRoutes);
   app.use('/chapters', chaptersRoutes);
   app.use('/sections', sectionsRoutes);
-  app.use('/', hierarchyRoutes); // Hierarchy linking routes use root paths
   app.use('/hierarchy', fileHierarchyRoutes); // File hierarchy with Syllabus/Standards/Subjects/Chapters/BookFiles
 
   // ============ CONTENT MANAGEMENT ============
@@ -80,41 +80,43 @@ function registerRoutes(app) {
 
   // ============ ASSIGNMENT MANAGEMENT ============
   app.use('/assignments', assignmentsRoutes);
-  app.use('/', assignmentQuestionsRoutes); // Assignment questions use mixed paths
-  app.use('/', assignmentQuestionOptionsRoutes); // Assignment question options use mixed paths
 
   // ============ EXAM MANAGEMENT ============
   app.use('/exams', examsRoutes);
   app.use('/questions', questionsRoutes);
-  app.use('/', questionOptionsRoutes); // Question options use mixed paths
-  app.use('/', examQuestionsRoutes); // Exam questions use mixed paths
-  app.use('/', answersRoutes); // Answers use mixed paths
 
   // ============ LEARNING TOOLS ============
   app.use('/flashcards', flashcardsRoutes);
-  app.use('/', userNotesRoutes); // User notes use mixed paths
 
   // ============ ANALYTICS & REPORTING ============
-  app.use('/', materialAnalyticsRoutes); // Material analytics use mixed paths
   app.use('/error-bank', errorBankRoutes);
   app.use('/results', resultsRoutes);
 
   // ============ AI INTEGRATION ============
-  app.use('/', claudeAIRoutes); // Claude AI routes use root paths
+  // ⚠️ IMPORTANT: Namespaced routes MUST come before root-level routes
   app.use('/anthropic', anthropicUploadRoutes); // Anthropic file upload routes
   app.use('/adaptive-content', adaptiveContentRoutes); // Adaptive content generation routes
+  app.use('/adaptive-content-library', adaptiveContentLibraryRoutes); // Adaptive content library routes
   app.use('/s3-upload', s3UploadRoutes); // S3 pre-signed URL routes for large file uploads
   app.use('/book-upload', bookUploadRoutes); // Book upload with chapter creation
+
+  // ============ ROOT-LEVEL ROUTES (Must come AFTER namespaced routes) ============
+  // ⚠️ CRITICAL: These routes use generic patterns like /:id and must be registered last
+  app.use('/', hierarchyRoutes); // Hierarchy linking routes use root paths
+  app.use('/', claudeAIRoutes); // Claude AI routes use root paths
+  app.use('/', assignmentQuestionsRoutes); // Assignment questions use mixed paths
+  app.use('/', assignmentQuestionOptionsRoutes); // Assignment question options use mixed paths
+  app.use('/', questionOptionsRoutes); // Question options use mixed paths
+  app.use('/', examQuestionsRoutes); // Exam questions use mixed paths
+  app.use('/', answersRoutes); // Answers use mixed paths
+  app.use('/', userNotesRoutes); // User notes use mixed paths
+  app.use('/', materialAnalyticsRoutes); // Material analytics use mixed paths
 
   // ============ DEBUG & DOCUMENTATION ROUTES ============
   if (process.env.NODE_ENV !== 'production') {
     const { addDebugRoutes } = require('./utils');
     addDebugRoutes(app);
   }
-
-  console.log('✅ All routes registered successfully');
-  console.log(`📊 Total modules: 37`);
-  console.log(`🏗️ Architecture: Centralized route management`);
 }
 
 /**
@@ -123,7 +125,7 @@ function registerRoutes(app) {
  */
 function getRouteSummary() {
   return {
-    totalModules: 37,
+    totalModules: 38,
     categories: {
       'Core Auth & Users': ['auth', 'users', 'roles', 'profiles', 'sessions'],
       'System Management': ['audit-logs'],
@@ -134,10 +136,10 @@ function getRouteSummary() {
       'Exam Management': ['exams', 'questions', 'question-options', 'exam-questions', 'answers'],
       'Learning Tools': ['flashcards', 'user-notes'],
       'Analytics & Reporting': ['material-analytics', 'error-bank', 'results'],
-      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 's3-upload', 'book-upload']
+      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 'adaptive-content-library', 's3-upload', 'book-upload']
     },
     routePatterns: {
-      'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*', '/hierarchy/*', '/book-upload/*'],
+      'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*', '/hierarchy/*', '/book-upload/*', '/adaptive-content-library/*'],
       'Root Level Routes': ['hierarchy', 'user-notes', 'answers', 'claude-ai'],
       'Mixed Path Routes': ['assignment-questions', 'question-options', 'exam-questions']
     }

@@ -29,15 +29,33 @@ provider:
     SUBJECTS_TABLE: ${env:SUBJECTS_TABLE, 'SubjectsTable'}
     CHAPTERS_TABLE: ${env:CHAPTERS_TABLE, 'ChaptersTable'}
     BOOK_FILES_TABLE: ${env:BOOK_FILES_TABLE, 'BookFilesTable'}
+    ADAPTIVE_CONTENT_LIBRARY_TABLE: ${env:ADAPTIVE_CONTENT_LIBRARY_TABLE, 'AdaptiveContentLibrary'}
   iam:
     role:
       statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogStream
+            - logs:CreateLogGroup
+            - logs:TagResource
+          Resource:
+            - 'arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}*:*'
+        - Effect: Allow
+          Action:
+            - logs:PutLogEvents
+          Resource:
+            - 'arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}*:*:*'
         - Effect: Allow
           Action:
             - cognito-idp:*
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - dynamodb:ListTables
+            - dynamodb:DescribeTable
           Resource: '*'
         - Effect: Allow
           Action:
@@ -50,20 +68,8 @@ provider:
             - dynamodb:BatchGetItem
             - dynamodb:BatchWriteItem
           Resource:
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-*-${self:provider.stage}'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-*-${self:provider.stage}/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Test*/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SyllabusTable'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SyllabusTable/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/StandardsTable'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/StandardsTable/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SubjectsTable'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/SubjectsTable/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/ChaptersTable'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/ChaptersTable/index/*'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/BookFilesTable'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/BookFilesTable/index/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/*'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/*/index/*'
 
 functions:
   api:
@@ -272,6 +278,22 @@ resources:
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
+
+    AdaptiveContentLibraryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AdaptiveContentLibrary
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: contentId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: contentId
+            KeyType: RANGE
 
 package:
   exclude:
