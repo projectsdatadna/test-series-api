@@ -36,15 +36,24 @@ app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
 
 // ============ HEALTH CHECK ROUTE ============
 app.get("/hello", (req, res) => {
-  res.json({ 
-    message: "Hello from Express on Lambda!",
-    version: "2.0.0",
-    architecture: "Modular",
-    totalModules: 31,
-    status: "healthy",
-    timestamp: new Date().toISOString()
-  });
+  try {
+    res.json({ 
+      message: "Hello from Express on Lambda!",
+      version: "2.0.0",
+      architecture: "Modular",
+      totalModules: 31,
+      status: "healthy",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[HELLO] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
+
+// ============ CORS PREFLIGHT HANDLER ============
+// Handle OPTIONS requests for CORS preflight
+app.options('/', cors(corsConfig()));
 
 // ============ REGISTER ALL MODULAR ROUTES ============
 registerRoutes(app);

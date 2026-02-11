@@ -9,8 +9,8 @@ try {
   fetch = require('node-fetch');
 }
 
-const s3Client = new S3Client({ 
-  region: process.env.AWS_REGION || 'ap-south-1', 
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'ap-south-1',
   requestChecksumCalculation: 'WHEN_REQUIRED',
   responseChecksumValidation: 'WHEN_REQUIRED'
 });
@@ -22,7 +22,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 async function getUploadUrls(req, res) {
   try {
     const { files } = req.body; // Array of { filename, contentType, size }
-    
+
     if (!files || !Array.isArray(files) || files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -45,17 +45,17 @@ async function getUploadUrls(req, res) {
     }
 
     const uploadUrls = [];
-    
+
     for (const file of files) {
       const fileKey = `uploads/${req.user.userId}/${Date.now()}-${file.filename}`;
-      
+
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
         Key: fileKey,
         ContentType: file.contentType,
       });
 
-      const uploadUrl = await getSignedUrl(s3Client, command, { 
+      const uploadUrl = await getSignedUrl(s3Client, command, {
         expiresIn: 3600 // 1 hour
       });
 
@@ -97,7 +97,7 @@ async function confirmUpload(req, res) {
     }
 
     const { fileKeys, topicName, contentType } = req.body;
-    
+
     if (!fileKeys || !Array.isArray(fileKeys) || fileKeys.length === 0) {
       return res.status(400).json({
         success: false,
@@ -115,7 +115,7 @@ async function confirmUpload(req, res) {
 
       const response = await s3Client.send(command);
       const buffer = await streamToBuffer(response.Body);
-      
+
       files.push({
         buffer,
         originalname: response.Metadata?.originalname || fileKey.split('/').pop(),
@@ -127,7 +127,7 @@ async function confirmUpload(req, res) {
     // Upload to Anthropic
     const boundary = `----formdata-${Math.random().toString(36)}`;
     const parts = [];
-    
+
     for (const file of files) {
       parts.push(Buffer.from(`--${boundary}\r\n`));
       parts.push(Buffer.from(`Content-Disposition: form-data; name="file"; filename="${file.originalname}"\r\n`));
@@ -135,7 +135,7 @@ async function confirmUpload(req, res) {
       parts.push(file.buffer);
       parts.push(Buffer.from(`\r\n`));
     }
-    
+
     parts.push(Buffer.from(`--${boundary}--\r\n`));
     const body = Buffer.concat(parts);
 
@@ -215,7 +215,7 @@ async function uploadFile(req, res) {
 
     const { topicName, contentType } = req.body;
     const files = req.files || [];
-    
+
     if (!files || files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -235,7 +235,7 @@ async function uploadFile(req, res) {
 
     const boundary = `----formdata-${Math.random().toString(36)}`;
     const parts = [];
-    
+
     for (const file of files) {
       parts.push(Buffer.from(`--${boundary}\r\n`));
       parts.push(Buffer.from(`Content-Disposition: form-data; name="file"; filename="${file.originalname}"\r\n`));
@@ -243,7 +243,7 @@ async function uploadFile(req, res) {
       parts.push(file.buffer);
       parts.push(Buffer.from(`\r\n`));
     }
-    
+
     parts.push(Buffer.from(`--${boundary}--\r\n`));
     const body = Buffer.concat(parts);
 

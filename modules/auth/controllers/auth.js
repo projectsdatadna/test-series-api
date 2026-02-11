@@ -197,6 +197,8 @@ async function emailsignUp(event) {
       });
     }
 
+    const userId = cognitoResult.UserSub;
+
     const userData = {
       user_id: cognitoResult.UserSub,
       email: email,
@@ -390,6 +392,8 @@ async function phoneSignUp(event){
         error: cognitoError.message
       });
     }
+
+    const userId = cognitoResult.UserSub;
 
     const userData = {
       user_id: cognitoResult.UserSub,
@@ -998,7 +1002,19 @@ async function profileSetup(event) {
       });
     }
 
-    const { userId, schoolName, grades, subjects, experienceLevel, preferences } = JSON.parse(event.body);
+    const { 
+      userId, 
+      firstName, 
+      lastName, 
+      email, 
+      phone, 
+      institutionName, 
+      schoolName, 
+      grades, 
+      subjects, 
+      experienceLevel, 
+      preferences 
+    } = JSON.parse(event.body);
 
     // Validate required fields
     if (!userId) {
@@ -1008,56 +1024,55 @@ async function profileSetup(event) {
       });
     }
 
-    // Fetch roleId from user sessions table
+    // Fetch current user data from sessions table
     const sessionsTable = SESSIONS_TABLE || 'TestUserSessions';
     
+    let currentUserData = null;
     let roleId = null;
     try {
-      const sessionResult = await dynamoDB.query({
+      const sessionResult = await dynamoDB.get({
         TableName: sessionsTable,
-        KeyConditionExpression: 'user_id = :userId',
-        ExpressionAttributeValues: {
-          ':userId': userId
-        },
-        Limit: 1
+        Key: { user_id: userId }
       }).promise();
 
-      if (sessionResult.Items && sessionResult.Items.length > 0) {
-        roleId = sessionResult.Items[0].role_id;
+      if (sessionResult.Item) {
+        currentUserData = sessionResult.Item;
+        roleId = currentUserData.role_id;
       }
     } catch (sessionError) {
-      console.error('Error fetching role from sessions table:', sessionError);
+      console.error('Error fetching user from sessions table:', sessionError);
     }
 
     if (!roleId) {
       return createResponse(400, {
         success: false,
-        message: 'Role ID not found in user session. Please login again.'
+        message: 'User not found in session. Please login again.'
       });
     }
 
-    if (!schoolName || typeof schoolName !== 'string' || schoolName.trim() === '') {
+    // Validate optional fields if provided
+    if (schoolName && (typeof schoolName !== 'string' || schoolName.trim() === '')) {
       return createResponse(400, {
         success: false,
-        message: 'School name is required and must be a non-empty string'
+        message: 'School name must be a non-empty string'
       });
     }
 
-    if (!grades || !Array.isArray(grades) || grades.length === 0) {
+    if (grades && !Array.isArray(grades)) {
       return createResponse(400, {
         success: false,
-        message: 'At least one grade must be selected'
+        message: 'Grades must be an array'
       });
     }
 
-    if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
+    if (subjects && !Array.isArray(subjects)) {
       return createResponse(400, {
         success: false,
-        message: 'At least one subject must be selected'
+        message: 'Subjects must be an array'
       });
     }
 
-    if (!experienceLevel || !['beginner', 'intermediate', 'advanced'].includes(experienceLevel)) {
+    if (experienceLevel && !['beginner', 'intermediate', 'advanced'].includes(experienceLevel)) {
       return createResponse(400, {
         success: false,
         message: 'Experience level must be one of: beginner, intermediate, advanced'
@@ -1066,53 +1081,113 @@ async function profileSetup(event) {
 
     // Preferences are optional, default to empty array
     const userPreferences = Array.isArray(preferences) ? preferences : [];
-
-    // Store profile setup in DynamoDB
-    const profileSetupId = uuidv4();
     const timestamp = new Date().toISOString();
 
-    const profileData = {
-      profileSetupId: profileSetupId,
-      user_id: userId,
-      role_id: roleId,
-      schoolName: schoolName.trim(),
-      grades: grades,
-      subjects: subjects,
-      experienceLevel: experienceLevel,
-      preferences: userPreferences,
-      created_at: timestamp,
-      updated_at: timestamp,
-      status: 'completed'
+    // Build update expression for SESSIONS_TABLE
+    const updateExpressions = ['updated_at = :updated_at'];
+    const expressionAttributeValues = {
+      ':updated_at': timestamp
     };
+    const expressionAttributeNames = {};
 
-    // Store in USERS_TABLE or a dedicated PROFILES_TABLE
-    const usersTable = process.env.USERS_TABLE;
+    // Add firstName if provided
+    if (firstName) {
+      updateExpressions.push('firstName = :firstName');
+      expressionAttributeValues[':firstName'] = firstName;
+    }
 
+    // Add lastName if provided
+    if (lastName) {
+      updateExpressions.push('lastName = :lastName');
+      expressionAttributeValues[':lastName'] = lastName;
+    }
+
+    // Add email if provided
+    if (email) {
+      updateExpressions.push('email = :email');
+      expressionAttributeValues[':email'] = email;
+    }
+
+    // Add phone if provided
+    if (phone) {
+      updateExpressions.push('phone = :phone');
+      expressionAttributeValues[':phone'] = phone;
+    }
+
+    // Add institutionName if provided
+    if (institutionName) {
+      updateExpressions.push('institutionName = :institutionName');
+      expressionAttributeValues[':institutionName'] = institutionName;
+    }
+
+    // Add schoolName if provided
+    if (schoolName) {
+      updateExpressions.push('schoolName = :schoolName');
+      expressionAttributeValues[':schoolName'] = schoolName.trim();
+    }
+
+    // Add grades if provided
+    if (grades && Array.isArray(grades)) {
+      updateExpressions.push('grades = :grades');
+      expressionAttributeValues[':grades'] = grades;
+    }
+
+    // Add subjects if provided
+    if (subjects && Array.isArray(subjects)) {
+      updateExpressions.push('subjects = :subjects');
+      expressionAttributeValues[':subjects'] = subjects;
+    }
+
+    // Add experienceLevel if provided
+    if (experienceLevel) {
+      updateExpressions.push('experienceLevel = :experienceLevel');
+      expressionAttributeValues[':experienceLevel'] = experienceLevel;
+    }
+
+    // Add preferences if provided
+    if (userPreferences.length > 0) {
+      updateExpressions.push('preferences = :preferences');
+      expressionAttributeValues[':preferences'] = userPreferences;
+    }
+
+    // Update SESSIONS_TABLE with all profile data
     await dynamoDB.update({
-      TableName: usersTable,
+      TableName: sessionsTable,
       Key: { user_id: userId },
-      UpdateExpression: 'SET profileSetup = :profileSetup, updated_at = :updatedAt',
-      ExpressionAttributeValues: {
-        ':profileSetup': profileData,
-        ':updatedAt': timestamp
-      }
+      UpdateExpression: 'SET ' + updateExpressions.join(', '),
+      ExpressionAttributeValues: expressionAttributeValues,
+      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined
     }).promise();
 
     console.log('Profile setup completed for user:', userId);
+
+    // Fetch updated user data to return
+    const updatedUserResult = await dynamoDB.get({
+      TableName: sessionsTable,
+      Key: { user_id: userId }
+    }).promise();
+
+    const updatedUserData = updatedUserResult.Item || {};
 
     return createResponse(200, {
       success: true,
       message: 'Profile setup completed successfully',
       data: {
-        profileSetupId: profileSetupId,
-        userId: userId,
-        roleId: roleId,
-        schoolName: schoolName,
-        grades: grades,
-        subjects: subjects,
-        experienceLevel: experienceLevel,
-        preferences: userPreferences,
-        created_at: timestamp
+        user_id: userId,
+        firstName: updatedUserData.firstName || '',
+        lastName: updatedUserData.lastName || '',
+        email: updatedUserData.email || '',
+        phone: updatedUserData.phone || '',
+        institutionName: updatedUserData.institutionName || '',
+        schoolName: updatedUserData.schoolName || '',
+        grades: updatedUserData.grades || [],
+        subjects: updatedUserData.subjects || [],
+        experienceLevel: updatedUserData.experienceLevel || '',
+        preferences: updatedUserData.preferences || [],
+        role_id: updatedUserData.role_id || roleId,
+        status: updatedUserData.confirmationStatus || 'active',
+        created_at: updatedUserData.created_at || timestamp,
+        updated_at: timestamp
       }
     });
 

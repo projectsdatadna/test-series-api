@@ -98,7 +98,7 @@ async function jwtLoginEmail (event) {
       });
     }
 
-    // Get user details
+    // Get user details from Cognito
     const getUserParams = {
       UserPoolId: USER_POOL_ID,
       Username: email
@@ -114,6 +114,24 @@ async function jwtLoginEmail (event) {
         success: false,
         message: 'Could not retrieve user ID from Cognito.'
       });
+    }
+
+    // Fetch complete user data from SESSIONS_TABLE
+    let completeUserData = null;
+    try {
+      const sessionsTable = process.env.SESSIONS_TABLE || 'TestUserSessions';
+      console.log(`[EMAIL LOGIN] Fetching user from SESSIONS_TABLE: ${sessionsTable}, userId: ${userId}`);
+      
+      const userResult = await dynamoDB.get({
+        TableName: sessionsTable,
+        Key: { user_id: userId }
+      }).promise();
+      
+      completeUserData = userResult.Item || null;
+      console.log('[EMAIL LOGIN] User data fetched from SESSIONS_TABLE:', completeUserData ? 'Found' : 'Not found');
+    } catch (dbError) {
+      console.error('[EMAIL LOGIN] Error fetching user from SESSIONS_TABLE:', dbError);
+      // Continue without complete user data
     }
 
     // Verify the access token (optional validation step)
@@ -180,8 +198,27 @@ async function jwtLoginEmail (event) {
           refresh_token_days: 365
         },
         
-        // User information
-        user: {
+        // Complete user information from SESSIONS_TABLE
+        user: completeUserData ? {
+          user_id: userId,
+          email: email,
+          first_name: completeUserData.firstName || '',
+          last_name: completeUserData.lastName || '',
+          full_name: `${completeUserData.firstName || ''} ${completeUserData.lastName || ''}`.trim(),
+          phone: completeUserData.phoneNumber || null,
+          role_id: completeUserData.role_id || roleId,
+          status: completeUserData.confirmationStatus || 'active',
+          school_name: completeUserData.schoolName || null,
+          grades: completeUserData.grades || [],
+          subjects: completeUserData.subjects || [],
+          experience_level: completeUserData.experienceLevel || null,
+          preferences: completeUserData.preferences || {},
+          notification_prefs: completeUserData.notificationPrefs || {},
+          enrolled_courses: completeUserData.enrolledCourseIds || [],
+          viewed_materials: completeUserData.viewedMaterialIds || [],
+          created_at: completeUserData.created_at || null,
+          updated_at: completeUserData.updated_at || null
+        } : {
           user_id: userId,
           email: email,
           username: userName,
@@ -304,6 +341,24 @@ async function jwtLoginPhone (event) {
       });
     }
 
+    // Fetch complete user data from SESSIONS_TABLE
+    let completeUserData = null;
+    try {
+      const sessionsTable = process.env.SESSIONS_TABLE || 'TestUserSessions';
+      console.log(`[PHONE LOGIN] Fetching user from SESSIONS_TABLE: ${sessionsTable}, userId: ${userId}`);
+      
+      const userResult = await dynamoDB.get({
+        TableName: sessionsTable,
+        Key: { user_id: userId }
+      }).promise();
+      
+      completeUserData = userResult.Item || null;
+      console.log('[PHONE LOGIN] User data fetched from SESSIONS_TABLE:', completeUserData ? 'Found' : 'Not found');
+    } catch (dbError) {
+      console.error('[PHONE LOGIN] Error fetching user from SESSIONS_TABLE:', dbError);
+      // Continue without complete user data
+    }
+
     // Verify the access token (optional validation step)
     try {
       const payload = await verifier.verify(tokens.AccessToken);
@@ -369,13 +424,32 @@ async function jwtLoginPhone (event) {
           refresh_token_days: 365
         },
         
-        // User information
-        user: {
+        // Complete user information from SESSIONS_TABLE
+        user: completeUserData ? {
+          user_id: userId,
+          phone_number: formattedPhone,
+          email: email,
+          first_name: completeUserData.firstName || '',
+          last_name: completeUserData.lastName || '',
+          full_name: `${completeUserData.firstName || ''} ${completeUserData.lastName || ''}`.trim(),
+          role_id: completeUserData.role_id || null,
+          status: completeUserData.confirmationStatus || 'active',
+          school_name: completeUserData.schoolName || null,
+          grades: completeUserData.grades || [],
+          subjects: completeUserData.subjects || [],
+          experience_level: completeUserData.experienceLevel || null,
+          preferences: completeUserData.preferences || {},
+          notification_prefs: completeUserData.notificationPrefs || {},
+          enrolled_courses: completeUserData.enrolledCourseIds || [],
+          viewed_materials: completeUserData.viewedMaterialIds || [],
+          created_at: completeUserData.created_at || null,
+          updated_at: completeUserData.updated_at || null
+        } : {
           user_id: userId,
           phone_number: formattedPhone,
           email: email,
           username: userName,
-          sub: userId // Store sub for refresh token
+          sub: userId
         },
         
         // Session info (optional, for tracking)

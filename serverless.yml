@@ -312,8 +312,7 @@ package:
     - dist/**
     - build/**
 
-plugins:
-  - serverless-offline
+plugins: []
 
 custom:
   serverless-offline:

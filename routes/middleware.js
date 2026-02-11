@@ -15,10 +15,14 @@ function requestLogger(req, res, next) {
  * Error handling middleware
  */
 function errorHandler(err, req, res, next) {
-  // Log only critical errors
-  if (err.status >= 500) {
-    console.error('Server Error:', err.message);
-  }
+  // Log all errors
+  console.error('[ERROR HANDLER]', {
+    message: err.message,
+    stack: err.stack,
+    path: req.originalUrl,
+    method: req.method,
+    status: err.status || 500
+  });
   
   // Default error response
   const errorResponse = {
@@ -47,7 +51,7 @@ function errorHandler(err, req, res, next) {
   }
   
   // Generic server error
-  res.status(500).json(errorResponse);
+  res.status(err.status || 500).json(errorResponse);
 }
 
 /**
@@ -78,7 +82,11 @@ function corsConfig() {
   return {
     origin: process.env.ALLOWED_ORIGINS ? 
       process.env.ALLOWED_ORIGINS.split(',') : 
-      ['http://localhost:3001', 'http://localhost:3000','http://test-series-ui.s3-website-us-east-1.amazonaws.com'],
+      [
+        'http://localhost:3001',
+        'http://localhost:3000',
+        'http://test-series-ui.s3-website-us-east-1.amazonaws.com',
+      ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept','x-anthropic-key'],
