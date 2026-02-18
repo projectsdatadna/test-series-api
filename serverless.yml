@@ -1,5 +1,7 @@
 service: test-api
 
+useDotenv: true
+
 provider:
   name: aws
   runtime: nodejs18.x
@@ -10,7 +12,7 @@ provider:
   environment:
     NODE_ENV: ${self:provider.stage}
     CLAUDE_API_KEY: ${env:CLAUDE_API_KEY, ''}
-    USER_POOL_ID: ${env:USER_POOL_ID, ''}
+    USER_POOL_ID: ${env:USER_POOL_ID}
     CLIENT_ID: ${env:CLIENT_ID, ''}
     CLIENT_SECRET: ${env:CLIENT_SECRET, ''}
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME, 'test-series-books'}
@@ -82,7 +84,7 @@ functions:
       - httpApi:
           path: /
           method: ANY
-
+  
 resources:
   Description: Test API - Course Management System with AI Integration
   Resources:

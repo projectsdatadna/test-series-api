@@ -36,7 +36,8 @@
     "multer": "^2.0.2",
     "serverless": "^3.40.0",
     "serverless-http": "^4.0.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

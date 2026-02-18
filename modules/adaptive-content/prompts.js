@@ -55,6 +55,20 @@ function getPrompt(contentTypeId, params) {
       return getMindMapsPrompt(params);
     case 'visual-explainers':
       return getVisualExplainersPrompt(params);
+    case 'diagrammatic-representation':
+      return getDiagrammaticRepresentationPrompt(params);
+    case 'process-flow-charts':
+      return getProcessFlowChartsPrompt(params);
+    case 'compare-contrast-tables':
+      return getCompareContrastTablesPrompt(params);
+    case 'cause-effect-chains':
+      return getCauseEffectChainsPrompt(params);
+    case 'timeline-visuals':
+      return getTimelineVisualsPrompt(params);
+    case 'key-formula':
+      return getKeyFormulaPrompt(params);
+    case 'chapter-summaries':
+      return getChapterSummariesPrompt(params);
     default:
       console.warn(`No prompt found for content type: ${contentTypeId}. Using ready-reckoner as default.`);
       return getReadyReckonerPrompt(params);
@@ -67,7 +81,14 @@ module.exports = {
   getReadyReckonerPrompt,
   getFlashCardsPrompt,
   getMindMapsPrompt,
-  getVisualExplainersPrompt
+  getVisualExplainersPrompt,
+  getDiagrammaticRepresentationPrompt,
+  getProcessFlowChartsPrompt,
+  getCompareContrastTablesPrompt,
+  getCauseEffectChainsPrompt,
+  getTimelineVisualsPrompt,
+  getKeyFormulaPrompt,
+  getChapterSummariesPrompt
 };
 
 
@@ -120,3 +141,96 @@ function getVisualExplainersPrompt(params) {
 
   return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents an infographic explainer for each key concept. The infographic should transform abstract ideas into visual understanding through a hierarchical flow structure. The design should be visually appealing and easy to read, with a consistent layout and color scheme. The explainer should be organized with a central core concept flowing down through multiple layers of explanation boxes. The overall design should be professional and suitable for use in an educational or training setting. Create an infographic visual explainer of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature as a structured, visually elegant, and interactive reference sheet. The layout should serve as a quick-access knowledge companion for students and professionals — focused on clarity, visual memory cues, and ease of scanning. Design Style: 'A4 Infographic Visual Explainer Layout' — EXACT HTML STRUCTURE REQUIRED: <!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\" /><title>Infographic Visual Explainer</title><style>@page {size: A4 portrait;margin: 18mm;}body {margin: 0;background: #f8fafc;font-family: \"Inter\", system-ui, sans-serif;color: #1f2937;}.page {width: 210mm;min-height: 297mm;padding: 18mm;box-sizing: border-box;}.title {text-align: center;margin-bottom: 30px;}.title h1 {font-size: 28px;background: linear-gradient(90deg, #4f46e5, #0ea5e9);-webkit-background-clip: text;-webkit-text-fill-color: transparent;margin-bottom: 6px;}.title p {font-size: 14px;color: #6b7280;}.diagram {display: grid;grid-template-columns: 1fr;gap: 28px;align-items: center;}.core {margin: auto;background: linear-gradient(135deg, #6366f1, #22d3ee);color: white;padding: 22px 30px;border-radius: 999px;font-size: 18px;font-weight: 600;text-align: center;width: fit-content;box-shadow: 0 12px 30px rgba(0,0,0,0.18);}.arrow {text-align: center;font-size: 26px;color: #9ca3af;}.layer {display: grid;grid-template-columns: repeat(2, 1fr);gap: 22px;}.box {background: linear-gradient(135deg, #ffffff, #f1f5f9);border-radius: 18px;padding: 18px;box-shadow: 0 10px 20px rgba(0,0,0,0.08);position: relative;border-top: 5px solid;}.box h3 {font-size: 16px;margin-bottom: 6px;}.box p {font-size: 13px;line-height: 1.5;color: #374151;}.concept {border-color: #6366f1;}.process {border-color: #0ea5e9;}.logic {border-color: #10b981;}.output {border-color: #f59e0b;}.flow {text-align: center;font-size: 24px;color: #9ca3af;}.footer {margin-top: 40px;text-align: center;font-size: 12px;color: #6b7280;}@media print {body {background: white;}}</style></head><body><div class=\"page\"><div class=\"title\"><h1>[Main Topic Title]</h1><p>[Subtitle or description]</p></div><div class=\"diagram\"><div class=\"core\">[Core Concept]</div><div class=\"arrow\">⬇</div><div class=\"layer\"><div class=\"box concept\"><h3>[Concept 1 Title]</h3><p>[Explanation text]</p></div><div class=\"box concept\"><h3>[Concept 2 Title]</h3><p>[Explanation text]</p></div></div><div class=\"flow\">⬇</div><div class=\"layer\"><div class=\"box process\"><h3>[Process 1 Title]</h3><p>[Explanation text]</p></div><div class=\"box logic\"><h3>[Logic 1 Title]</h3><p>[Explanation text]</p></div></div><div class=\"flow\">⬇</div><div class=\"layer\"><div class=\"box output\"><h3>[Output 1 Title]</h3><p>[Explanation text]</p></div><div class=\"box output\"><h3>[Output 2 Title]</h3><p>[Explanation text]</p></div></div></div><div class=\"footer\">Infographic-based learning • Visual memory • Clear mental models</div></div></body></html>. A4 page (210mm × 297mm portrait) with 18mm padding, light background (#f8fafc). Header section with centered title using gradient text (linear-gradient(90deg, #4f46e5, #0ea5e9), 28px font-size) and subtitle (14px, #6b7280 color). Central core node with gradient background (linear-gradient(135deg, #6366f1, #22d3ee)), white text (18px bold), pill-shaped border (border-radius: 999px), centered with auto margins, padding 22px 30px, shadow (0 12px 30px rgba(0,0,0,0.18)). Vertical flow structure using grid layout (display: grid, grid-template-columns: 1fr, gap: 28px). Down arrows (⬇) centered between layers (26px font-size, #9ca3af color). Three layers of explanation boxes arranged in 2-column grid (grid-template-columns: repeat(2, 1fr), gap: 22px). Each box has gradient background (linear-gradient(135deg, #ffffff, #f1f5f9)), rounded corners (18px), padding 18px, shadow (0 10px 20px rgba(0,0,0,0.08)), and colored top border (5px solid). Four border color classes: .concept (#6366f1 indigo), .process (#0ea5e9 cyan), .logic (#10b981 green), .output (#f59e0b amber). Box headers h3 (16px, margin-bottom: 6px), box content p (13px, line-height: 1.5, #374151 color). Footer centered text (12px, #6b7280, margin-top: 40px) with static text 'Infographic-based learning • Visual memory • Clear mental models'. Typography uses Inter font throughout. Print styles with @page (size: A4 portrait, margin: 18mm) and body (background: white for print). Flow Structure: 1. Title section with h1 (gradient text) and p (subtitle). 2. Core concept node (gradient pill shape, centered). 3. First layer: 2 boxes with .concept class (indigo border). 4. Flow arrow (⬇). 5. Second layer: 2 boxes with .process and .logic classes (cyan and green borders). 6. Flow arrow (⬇). 7. Third layer: 2 boxes with .output class (amber border). 8. Footer text. Output Format: CRITICAL - You MUST generate HTML that EXACTLY matches this structure. Use the EXACT class names (page, title, diagram, core, arrow, layer, box, concept, process, logic, output, flow, footer). Use the EXACT CSS properties and values shown above. The title div must contain h1 with main topic and p with subtitle. The core div contains the central concept as plain text. Each layer div contains 2 boxes (div.box with color class) containing h3 heading and p paragraph. Arrow divs contain down arrow symbol (⬇). Flow divs contain down arrow symbol (⬇). Footer contains static text. NO bullet points, NO lists - only h3 headings and p paragraphs inside boxes. NO SVG, NO JavaScript - pure CSS layout. CRITICAL REQUIREMENT: You MUST output the complete HTML code directly. DO NOT output bullet points, text summaries, or explanations. DO NOT describe the content - generate the actual HTML code with the extracted concepts populated into the exact infographic structure shown above. Replace [Main Topic Title] with chapter topic, [Subtitle] with description, [Core Concept] with main idea, box titles and paragraphs with extracted explanations. First layer uses .concept class (2 boxes), second layer uses .process and .logic classes (1 box each), third layer uses .output class (2 boxes). The response should START with <!DOCTYPE html> and END with </html>. The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely by removing all spaces between tags. The entire HTML must be one unbroken line from <!DOCTYPE to </html>. Do NOT format or pretty-print the HTML. Return ONLY the complete minified HTML code with extracted content, nothing else - no JSON, no quotes, no markdown, no explanations, no preamble, no postamble. Output Format: <!DOCTYPE html>...complete HTML script here.... Strictly adhere to the output format given. Additional Notes: The page must look structured, calm, and intuitive for study purposes — print-ready for A4 paper format. Ensure connection lines connect properly, cards are positioned precisely, and responsive design works on mobile devices. CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely by removing all spaces between tags. The entire HTML string inside the htmlText array must be one unbroken line from <!DOCTYPE to </html>. Do NOT format or pretty-print the HTML. Return only the JSON output with fully minified HTML inside quotes, nothing else. Give me the HTML script alone. Do not add any other text or markdown. Return only the JSON output with full HTML inside quotes, nothing else. Follow the output format strictly.`;
 }
+
+
+function getDiagrammaticRepresentationPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents structured diagrams for complex systems, processes, or relationships. Each diagram should include clear labels, annotations, and hierarchical connections. The design should be visually appealing with clean layouts using boxes, arrows, and connecting lines. Create a diagrammatic representation of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature as a structured, visually elegant reference sheet. Design Style: 'Structured Diagram Layout' — Clean white/off-white background (#FFFFFF to #F9FAFB), soft academic pastel blocks (Blue #DBEAFE, Green #DCFCE7, Yellow #FEF3C7, Pink #FCE7F3, Purple #E9D5FF), rounded rectangles (12px border-radius), thin gray borders (#E5E7EB, 2px), minimal shadows (0 4px 12px rgba(0,0,0,0.08)). Use Inter font for labels (0.875rem) and Poppins for headings (1.25rem bold). Layout includes: 1) Header with subject/chapter/topic and 'Textbook Diagram Sheet' tag, 2) Title section with main topic, 3) Topic Explanation section with 3-6 descriptive sentences in neutral box, 4) System Diagram section with interconnected boxes showing components and relationships with directional arrows, 5) Important Points section with 6-10 key points in colored boxes, 6) Key Terms section with term-definition pairs in two-column layout, 7) Footer with attribution. Use SVG or CSS for arrows connecting diagram elements. Maintain clean spacing (2rem padding) and academic tone. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getProcessFlowChartsPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents step-by-step flowcharts mapping sequential processes, decision trees, and algorithmic patterns. Include decision diamonds, process rectangles, and directional flow arrows. Create a process flow chart of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Flowchart Layout' — White background (#FFFFFF), flowchart shapes: rectangles for processes (Blue #3B82F6 background, white text, 8px border-radius, padding 1rem), diamonds for decisions (Yellow #FBBF24 background, 45deg rotation, white text), rounded rectangles for start/end (Green #10B981 for start, Red #EF4444 for end, 999px border-radius), arrows connecting shapes (Gray #6B7280, 3px stroke). Use CSS Grid or Flexbox for vertical/horizontal flow alignment. Layout includes: 1) Header with title 'Process Flow Chart: [Topic]', 2) Start node (rounded green rectangle), 3) Sequential process boxes connected by arrows, 4) Decision diamonds with Yes/No branches, 5) Alternative paths showing different outcomes, 6) End node (rounded red rectangle), 7) Legend explaining shape meanings, 8) Footer. Use Inter font (0.875rem for text, 1rem bold for labels). Maintain clear spacing (2rem gaps) between flow elements. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getCompareContrastTablesPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents side-by-side comparison matrices highlighting similarities, differences, and key distinguishing features. Create a compare and contrast table of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Comparison Table Layout' — Clean white background (#FFFFFF), comparison table with 3-column layout (Feature | Item A | Item B), header row with gradient background (linear-gradient(90deg, #6366F1, #8B5CF6), white text, 1rem bold), alternating row colors (White #FFFFFF and Light Gray #F9FAFB), borders (1px solid #E5E7EB), rounded corners (12px on table), padding (1rem per cell). Use accent colors for positive differences (Green #10B981 highlight), negative differences (Red #EF4444 highlight), and neutral (Blue #3B82F6 highlight). Layout includes: 1) Header with title 'Comparison: [Topic A] vs [Topic B]', 2) Introduction paragraph explaining comparison context, 3) Main comparison table with 8-12 feature rows, 4) Similarities section with bullet points in Green box, 5) Key Differences section with bullet points in Orange box, 6) Summary insights in neutral box, 7) Footer. Use Inter font (0.875rem for table text, 1.125rem for headings). Icons for checkmarks (✓) and crosses (✗) where applicable. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getCauseEffectChainsPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents cause-and-effect diagrams showing causal relationships, consequences, and interconnected events. Create a cause-effect chain diagram of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Cause-Effect Chain Layout' — Light background (#F8FAFC), cause boxes (Purple #A855F7 background, white text, rounded-left 16px, padding 1.5rem), effect boxes (Teal #14B8A6 background, white text, rounded-right 16px, padding 1.5rem), connecting arrows (thick 4px, gradient from purple to teal), intermediate consequence boxes (Orange #F59E0B, standard 8px border-radius). Use vertical or horizontal chain layout with clear directional flow. Layout includes: 1) Header with title 'Cause & Effect Analysis: [Topic]', 2) Introduction explaining the causal relationship, 3) Primary Cause section (large purple box), 4) Arrow leading to Intermediate Effects (3-4 orange boxes), 5) Arrows leading to Final Consequences (2-3 teal boxes), 6) Feedback Loops section showing cyclical relationships (dashed arrows in Gray #6B7280), 7) Key Insights box summarizing the chain, 8) Footer. Use Poppins for cause/effect labels (1rem bold) and Inter for descriptions (0.875rem). Add icons: ⚡ for causes, → for direct effects, ↻ for feedback loops. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getTimelineVisualsPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents chronological timelines mapping historical events, geographical changes, and temporal progressions. Create a timeline visual of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Vertical Timeline Layout' — Light gradient background (#FFFFFF to #F0F9FF), central vertical timeline bar (4px wide, gradient Blue #3B82F6 to Purple #8B5CF6), event nodes positioned alternately left and right of timeline, circular date markers (40px diameter, gradient background, white text, bold font), event cards (White background, rounded 12px, padding 1.5rem, shadow 0 4px 12px rgba(0,0,0,0.1), colored left border 4px solid matching date marker color). Use 6-color rotation: Blue #3B82F6, Green #10B981, Orange #F59E0B, Red #EF4444, Purple #8B5CF6, Teal #14B8A6. Layout includes: 1) Header with title 'Timeline: [Topic/Period]', 2) Introduction paragraph with date range, 3) Vertical timeline with 8-12 chronological events, 4) Each event card contains: date/year (bold, colored), event title (1rem bold), description (0.875rem, 2-3 sentences), optional image placeholder, 5) Era dividers (horizontal dashed lines with era labels like 'Ancient Period', 'Modern Era'), 6) Key Milestones section highlighting 3-4 most significant events, 7) Footer. Use Poppins for dates/titles (1rem bold) and Inter for descriptions (0.875rem). Icons: 📅 for dates, ⭐ for milestones, 🌍 for geographical events. Responsive: switches to left-aligned on mobile. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getKeyFormulaPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a 1-page HTML script that visually presents a curated collection of essential formulas, equations, and mathematical expressions with usage examples and conditions. Create a key formula sheet of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Formula Sheet Layout' — Clean white background (#FFFFFF), formula cards in grid layout (2-column on desktop, 1-column on mobile), each card with light gradient background (linear-gradient(135deg, #EEF2FF, #FFFFFF)), rounded corners (16px), padding (2rem), shadow (0 6px 16px rgba(0,0,0,0.08)). Formula display in large monospace font (Fira Code or Courier New, 1.125rem), colored formula name badge (Blue #3B82F6 background, white text, rounded-full, padding 0.5rem 1rem). Layout includes: 1) Header with title 'Key Formula Sheet: [Topic]', 2) Subject/Chapter info subtitle, 3) Quick Index section with clickable formula names, 4) Formula Cards Grid containing 8-12 formulas, each with: Formula name badge, Large formula display (LaTeX-style rendering or HTML entities), 'Where' section explaining variables (small gray boxes with variable definitions), 'Usage' section with application context, 'Example' section with worked calculation, Color-coded difficulty badge (Easy=Green, Medium=Orange, Hard=Red), 5) Units & Constants reference table, 6) Common Mistakes section with warning boxes (Red #FEE2E2 background), 7) Quick Tips section (Blue #DBEAFE background), 8) Footer with print-friendly notice. Use Poppins for headings (1.25rem bold), Inter for descriptions (0.875rem), Fira Code for formulas and variables. Icons: ∑ for summations, ∫ for integrals, √ for roots, π for constants. Add copy-to-clipboard button for each formula. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
+function getChapterSummariesPrompt(params) {
+  const {
+    sectionNumber = '',
+    topicName = '',
+    contentDepth = 'intermediate',
+    contentType = '',
+    outputLanguage = 'english',
+    visualStyle = 'academic'
+  } = params;
+
+  return `Extract key concepts from the chapter to form the basis of an HTML study guide and Generate a comprehensive 1-3 page HTML script that presents a detailed chapter summary capturing main concepts, key takeaways, and critical insights. Create a chapter summary of the file with ${contentDepth} content depth in ${outputLanguage} language in ${contentType} style with ${visualStyle} nature. Design Style: 'Academic Summary Layout' — Clean A4-printable white background (#FFFFFF), structured sections with clear hierarchy, soft section dividers (1px solid #E5E7EB), generous line spacing (1.8), readable paragraph width (max-width: 65ch). Use subtle background colors for section headers (Blue #EEF2FF for Overview, Green #F0FDF4 for Key Concepts, Yellow #FFFBEB for Important Points, Purple #FAF5FF for Conclusion). Layout includes: 1) Cover Section with title 'Chapter Summary: [Chapter Name]', subject/board/standard info, chapter number, AI generation notice, 2) Table of Contents with section links, 3) Chapter Overview (2-3 paragraphs) introducing main theme and scope, 4) Learning Objectives section with numbered list of 5-8 key learning outcomes, 5) Key Concepts & Definitions section with sub-sections for each major concept, each containing: concept heading, detailed explanation (3-5 sentences), related terms in highlighted boxes, 6) Important Points section with 10-15 critical takeaways in numbered format with colored left borders, 7) Formulas & Rules section (if applicable) with formula cards, 8) Diagrams & Visual Aids section with placeholder boxes and descriptions, 9) Worked Examples section with 2-3 detailed problem solutions, 10) Summary & Conclusion with condensed main points, 11) Practice Questions section with 5-8 review questions, 12) Additional Resources section with reference links, 13) Footer with page numbers and copyright. Use Merriweather or Georgia for body text (1rem, line-height 1.8), Poppins for headings (h1: 2rem, h2: 1.5rem, h3: 1.25rem), monospace for code/formulas. Color scheme: Primary Blue #2563EB, Secondary Green #059669, Accent Orange #EA580C, Text Dark Gray #1F2937, Text Light Gray #6B7280. Icons: 📖 for sections, ✓ for key points, 💡 for insights, ⚠️ for important notes, 📝 for examples. Add print styles with page breaks and proper margins. Multi-column layout for dense sections. Highlight boxes for definitions, warnings, tips, and examples with appropriate icons and colors. Output Format: <!DOCTYPE html>...complete HTML script here.... CRITICAL REQUIREMENT: The HTML must be returned as a SINGLE CONTINUOUS LINE with absolutely NO newline characters (\\n), NO line breaks, NO tabs, and NO formatting whitespace. Minify the HTML completely. Return only the JSON output with fully minified HTML inside quotes, nothing else. Follow the output format strictly.`;
+}
+
