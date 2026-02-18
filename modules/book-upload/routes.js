@@ -8,6 +8,9 @@ const router = express.Router();
 // Upload book file and create chapter
 router.post('/upload', controller.uploadBookFile);
 
+// Get all books
+router.get('/books', controller.getAllBooks);
+
 // Get chapters for a subject
 router.get('/chapters/:subjectId', controller.getChaptersForSubject);
 

@@ -231,6 +231,45 @@ const getBookFilesByChapter = async (chapterId) => {
   }
 };
 
+const getAllBooks = async () => {
+  try {
+    // Fetch all books
+    const booksResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.BOOK_FILES,
+      })
+    );
+    const books = booksResult.Items || [];
+
+    // Fetch all chapters to map standardId
+    const chaptersResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.CHAPTERS,
+      })
+    );
+    const chapters = chaptersResult.Items || [];
+
+    // Create a map of chapterId to chapter data for quick lookup
+    const chapterMap = {};
+    chapters.forEach(chapter => {
+      chapterMap[chapter.chapterId] = chapter;
+    });
+
+    // Enrich books with standardId from chapters
+    const enrichedBooks = books.map(book => ({
+      ...book,
+      standardId: chapterMap[book.chapterId]?.standardId || null,
+      subjectId: chapterMap[book.chapterId]?.subjectId || null,
+      syllabusId: chapterMap[book.chapterId]?.syllabusId || null,
+      chapterName: chapterMap[book.chapterId]?.chapterName || null,
+    }));
+
+    return enrichedBooks;
+  } catch (error) {
+    throw new Error(`Failed to fetch all books: ${error.message}`);
+  }
+};
+
 // ============ SECTIONS ============
 const getSectionsByChapter = async (chapterId) => {
   try {
@@ -260,5 +299,6 @@ module.exports = {
   createBookFile,
   getBookFileById,
   getBookFilesByChapter,
+  getAllBooks,
   getSectionsByChapter,
 };

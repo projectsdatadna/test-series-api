@@ -125,7 +125,7 @@ function registerRoutes(app) {
  */
 function getRouteSummary() {
   return {
-    totalModules: 38,
+    totalModules: 37,
     categories: {
       'Core Auth & Users': ['auth', 'users', 'roles', 'profiles', 'sessions'],
       'System Management': ['audit-logs'],

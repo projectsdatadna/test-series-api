@@ -121,8 +121,27 @@ const getBookFilesForChapter = async (req, res) => {
   }
 };
 
+// Get all books from database
+const getAllBooks = async (req, res) => {
+  try {
+    const books = await hierarchyService.getAllBooks();
+    res.status(200).json({
+      success: true,
+      data: books,
+      count: books.length,
+      message: 'All books fetched successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   uploadBookFile,
   getChaptersForSubject,
   getBookFilesForChapter,
+  getAllBooks,
 };
