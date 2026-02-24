@@ -6,7 +6,7 @@ const { PutCommand, GetCommand, QueryCommand, ScanCommand } = require('@aws-sdk/
 const {
   generateChapterId,
   generateFileId,
-  validateHierarchy,
+  validateHierarchy
 } = require('./utils');
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -17,7 +17,7 @@ const TABLES = {
   STANDARDS: process.env.STANDARDS_TABLE || 'StandardsTable',
   SUBJECTS: process.env.SUBJECTS_TABLE || 'SubjectsTable',
   CHAPTERS: process.env.CHAPTERS_TABLE || 'ChaptersTable',
-  BOOK_FILES: process.env.BOOK_FILES_TABLE || 'BookFilesTable',
+  BOOK_FILES: process.env.BOOK_FILES_TABLE || 'BookFilesTable'
 };
 
 // ============ SYLLABUS ============
@@ -37,7 +37,7 @@ const createSyllabus = async (syllabusId, syllabusName) => {
     const item = {
       syllabusId,
       syllabusName,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     await docClient.send(new PutCommand({ TableName: TABLES.SYLLABUS, Item: item }));
     return item;
@@ -52,7 +52,7 @@ const getStandardsBysyllabus = async (syllabusId) => {
     // Standards are common for all syllabi, so fetch all standards
     const result = await docClient.send(
       new ScanCommand({
-        TableName: TABLES.STANDARDS,
+        TableName: TABLES.STANDARDS
       })
     );
     return result.Items || [];
@@ -67,7 +67,7 @@ const createStandard = async (syllabusId, standardId, standardName) => {
       syllabusId,
       standardId,
       standardName,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     await docClient.send(new PutCommand({ TableName: TABLES.STANDARDS, Item: item }));
     return item;
@@ -82,28 +82,28 @@ const getSubjectsByStandard = async (standardId) => {
     // Define which subjects are available for each standard range
     const subjectsFor6to10 = ['SUB_TAM', 'SUB_ENG', 'SUB_MAT', 'SUB_SCI', 'SUB_SOC'];
     const subjectsFor11to12 = ['SUB_TAM', 'SUB_ENG', 'SUB_PHY', 'SUB_CHE', 'SUB_BIO', 'SUB_MAT', 'SUB_HIS', 'SUB_GEO', 'SUB_ECO', 'SUB_POL'];
-    
+
     // Determine which subjects to return based on standard
     let allowedSubjects = [];
     const standardNum = parseInt(standardId.split('_')[1]);
-    
+
     if (standardNum >= 6 && standardNum <= 10) {
       allowedSubjects = subjectsFor6to10;
     } else if (standardNum >= 11 && standardNum <= 12) {
       allowedSubjects = subjectsFor11to12;
     }
-    
+
     // Fetch all subjects and filter
     const result = await docClient.send(
       new ScanCommand({
-        TableName: TABLES.SUBJECTS,
+        TableName: TABLES.SUBJECTS
       })
     );
-    
-    const filteredItems = (result.Items || []).filter(item => 
+
+    const filteredItems = (result.Items || []).filter(item =>
       allowedSubjects.includes(item.subjectId)
     );
-    
+
     return filteredItems;
   } catch (error) {
     throw new Error(`Failed to fetch subjects: ${error.message}`);
@@ -115,7 +115,7 @@ const createSubject = async (standardId, subjectId, subjectName) => {
     const item = {
       subjectId,
       subjectName,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     await docClient.send(new PutCommand({ TableName: TABLES.SUBJECTS, Item: item }));
     return item;
@@ -135,23 +135,61 @@ const getChaptersBySubject = async (subjectId, standardId, syllabusId) => {
         ExpressionAttributeValues: {
           ':subjectId': subjectId,
           ':standardId': standardId,
-          ':syllabusId': syllabusId,
-        },
+          ':syllabusId': syllabusId
+        }
       })
     );
-    return result.Items || [];
+
+    const chapters = result.Items || [];
+
+    // Fetch all book files to enrich chapters with vector data
+    const booksResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.BOOK_FILES
+      })
+    );
+    const books = booksResult.Items || [];
+
+    console.log(booksResult,'booksResult');
+
+    // Create a map of chapterId to book files with vector data
+    const chapterBooksMap = {};
+    books.forEach(book => {
+      if (book.chapterId) {
+        if (!chapterBooksMap[book.chapterId]) {
+          chapterBooksMap[book.chapterId] = [];
+        }
+        chapterBooksMap[book.chapterId].push({
+          bookId: book.bookId,
+          fileId: book.fileId,
+          fileName: book.fileName,
+          fileSize: book.fileSize,
+          uploadedAt: book.uploadedAt,
+          vectorSections: book.vectorSections || [],
+          vectorMetadata: book.vectorMetadata || {}
+        });
+      }
+    });
+
+    // Enrich chapters with book files and vector data
+    const enrichedChapters = chapters.map(chapter => ({
+      ...chapter,
+      bookFiles: chapterBooksMap[chapter.chapterId] || []
+    }));
+
+    return enrichedChapters;
   } catch (error) {
     throw new Error(`Failed to fetch chapters: ${error.message}`);
   }
 };
 
-const createChapter = async (subjectId, chapterName, fileId, syllabusId, standardId) => {
+const createChapter = async (subjectId, chapterName, fileId, syllabusId, standardId, division = null) => {
   try {
     // Validate all hierarchy parameters
     if (!syllabusId || !standardId || !subjectId) {
       throw new Error('Invalid hierarchy: syllabusId, standardId, subjectId required');
     }
-    
+
     const chapterId = generateChapterId();
     const item = {
       chapterId,
@@ -160,8 +198,14 @@ const createChapter = async (subjectId, chapterName, fileId, syllabusId, standar
       fileId,
       syllabusId,
       standardId,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
+    
+    // Add division field if provided (for 9th and 10th English: Chapters, Poems, Workbook)
+    if (division) {
+      item.division = division;
+    }
+    
     await docClient.send(new PutCommand({ TableName: TABLES.CHAPTERS, Item: item }));
     return item;
   } catch (error) {
@@ -174,7 +218,7 @@ const getChapterById = async (chapterId, chapterName) => {
     const result = await docClient.send(
       new GetCommand({
         TableName: TABLES.CHAPTERS,
-        Key: { chapterId, chapterName },
+        Key: { chapterId, chapterName }
       })
     );
     return result.Item || null;
@@ -184,7 +228,7 @@ const getChapterById = async (chapterId, chapterName) => {
 };
 
 // ============ BOOK FILES ============
-const createBookFile = async (fileId, fileName, chapterId, fileSize, uploadedAt) => {
+const createBookFile = async (fileId, fileName, chapterId, fileSize, uploadedAt, chapterData = null) => {
   try {
     const bookId = generateChapterId(); // Use as unique book identifier
     const item = {
@@ -193,8 +237,17 @@ const createBookFile = async (fileId, fileName, chapterId, fileSize, uploadedAt)
       fileName,
       chapterId,
       fileSize,
-      uploadedAt: uploadedAt || new Date().toISOString(),
+      uploadedAt: uploadedAt || new Date().toISOString()
     };
+
+    // Add chapter data if provided
+    if (chapterData) {
+      item.chapterName = chapterData.chapterName || null;
+      item.syllabusId = chapterData.syllabusId || null;
+      item.standardId = chapterData.standardId || null;
+      item.subjectId = chapterData.subjectId || null;
+    }
+
     await docClient.send(new PutCommand({ TableName: TABLES.BOOK_FILES, Item: item }));
     return item;
   } catch (error) {
@@ -207,7 +260,7 @@ const getBookFileById = async (bookId, fileId) => {
     const result = await docClient.send(
       new GetCommand({
         TableName: TABLES.BOOK_FILES,
-        Key: { bookId, fileId },
+        Key: { bookId, fileId }
       })
     );
     return result.Item || null;
@@ -222,10 +275,25 @@ const getBookFilesByChapter = async (chapterId) => {
       new ScanCommand({
         TableName: TABLES.BOOK_FILES,
         FilterExpression: 'chapterId = :chapterId',
-        ExpressionAttributeValues: { ':chapterId': chapterId },
+        ExpressionAttributeValues: { ':chapterId': chapterId }
       })
     );
-    return result.Items || [];
+
+    const bookFiles = result.Items || [];
+
+    // Enrich book files with vector data
+    const enrichedBookFiles = bookFiles.map(book => ({
+      bookId: book.bookId,
+      fileId: book.fileId,
+      fileName: book.fileName,
+      chapterId: book.chapterId,
+      fileSize: book.fileSize,
+      uploadedAt: book.uploadedAt,
+      vectorSections: book.vectorSections || [],
+      vectorMetadata: book.vectorMetadata || {}
+    }));
+
+    return enrichedBookFiles;
   } catch (error) {
     throw new Error(`Failed to fetch book files: ${error.message}`);
   }
@@ -236,7 +304,7 @@ const getAllBooks = async () => {
     // Fetch all books
     const booksResult = await docClient.send(
       new ScanCommand({
-        TableName: TABLES.BOOK_FILES,
+        TableName: TABLES.BOOK_FILES
       })
     );
     const books = booksResult.Items || [];
@@ -244,7 +312,7 @@ const getAllBooks = async () => {
     // Fetch all chapters to map standardId
     const chaptersResult = await docClient.send(
       new ScanCommand({
-        TableName: TABLES.CHAPTERS,
+        TableName: TABLES.CHAPTERS
       })
     );
     const chapters = chaptersResult.Items || [];
@@ -255,13 +323,20 @@ const getAllBooks = async () => {
       chapterMap[chapter.chapterId] = chapter;
     });
 
-    // Enrich books with standardId from chapters
+    // Enrich books with standardId from chapters and vector data
     const enrichedBooks = books.map(book => ({
-      ...book,
+      bookId: book.bookId,
+      fileId: book.fileId,
+      fileName: book.fileName,
+      chapterId: book.chapterId,
+      fileSize: book.fileSize,
+      uploadedAt: book.uploadedAt,
       standardId: chapterMap[book.chapterId]?.standardId || null,
       subjectId: chapterMap[book.chapterId]?.subjectId || null,
       syllabusId: chapterMap[book.chapterId]?.syllabusId || null,
       chapterName: chapterMap[book.chapterId]?.chapterName || null,
+      vectorSections: book.vectorSections || [],
+      vectorMetadata: book.vectorMetadata || {}
     }));
 
     return enrichedBooks;
@@ -277,7 +352,7 @@ const getSectionsByChapter = async (chapterId) => {
       new ScanCommand({
         TableName: TABLES.CHAPTERS,
         FilterExpression: 'chapterId = :chapterId',
-        ExpressionAttributeValues: { ':chapterId': chapterId },
+        ExpressionAttributeValues: { ':chapterId': chapterId }
       })
     );
     return result.Items || [];
@@ -300,5 +375,5 @@ module.exports = {
   getBookFileById,
   getBookFilesByChapter,
   getAllBooks,
-  getSectionsByChapter,
+  getSectionsByChapter
 };

@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateAdaptiveContent } = require('./controller');
+const { generateAdaptiveContent, generateAdaptiveContentFromSection } = require('./controller');
 const { CognitoJwtVerifier } = require('aws-jwt-verify');
 
 const router = express.Router();
@@ -8,7 +8,7 @@ const router = express.Router();
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -18,7 +18,7 @@ const verifyJWT = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     const verifier = CognitoJwtVerifier.create({
       userPoolId: process.env.USER_POOL_ID,
       tokenUse: 'access',
@@ -26,7 +26,7 @@ const verifyJWT = async (req, res, next) => {
     });
 
     const payload = await verifier.verify(token);
-    
+
     // Add user info to request
     req.user = {
       userId: payload.sub,
@@ -39,7 +39,7 @@ const verifyJWT = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('JWT Verification Error:', error);
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -47,7 +47,7 @@ const verifyJWT = async (req, res, next) => {
         message: 'Your access token has expired. Please sign in again.'
       });
     }
-    
+
     return res.status(401).json({
       success: false,
       error: 'Invalid token',
@@ -61,9 +61,18 @@ router.options('/generate', (req, res) => {
   res.sendStatus(200);
 });
 
+router.options('/generate-from-section', (req, res) => {
+  res.sendStatus(200);
+});
+
 // Generate adaptive content from uploaded file
 // POST /adaptive-content/generate
 // Body: { fileId, sectionNumber, topicName, contentType }
 router.post('/generate', verifyJWT, generateAdaptiveContent);
+
+// Generate adaptive content from section with embeddings
+// POST /adaptive-content/generate-from-section
+// Body: { sectionId, sectionNumber, sectionTitle, chunks, contentType, contentTypeId, contentDepth, visualStyle, outputLanguage }
+router.post('/generate-from-section', verifyJWT, generateAdaptiveContentFromSection);
 
 module.exports = router;

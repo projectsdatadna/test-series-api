@@ -4,13 +4,13 @@ const cors = require('cors');
 
 // Import central route registry and middleware
 const { registerRoutes } = require('./routes/index');
-const { 
-  requestLogger, 
-  errorHandler, 
-  notFoundHandler, 
-  corsConfig, 
-  securityHeaders, 
-  apiVersioning 
+const {
+  requestLogger,
+  errorHandler,
+  notFoundHandler,
+  corsConfig,
+  securityHeaders,
+  apiVersioning
 } = require('./routes/middleware');
 
 
@@ -39,7 +39,7 @@ app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
 // ============ HEALTH CHECK ROUTE ============
 app.get("/hello", (req, res) => {
   try {
-    res.json({ 
+    res.json({
       message: "Hello from Express on Lambda!",
       version: "2.0.0",
       architecture: "Modular",

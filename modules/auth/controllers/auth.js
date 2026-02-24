@@ -65,8 +65,8 @@ async function emailsignUp(event) {
     }
 
      if (event.httpMethod === "OPTIONS") {
-       return createResponse(200, {});
-     }
+      return createResponse(200, {});
+    }
     // let parsedBody;
     // try {
     //   parsedBody = JSON.parse(event.body);
@@ -122,7 +122,7 @@ async function emailsignUp(event) {
       ClientId: CLIENT_ID,
       Username: email,
       Password: password,
-      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET), 
+      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET),
       UserAttributes: [
         {
           Name: 'email',
@@ -154,40 +154,40 @@ async function emailsignUp(event) {
     } catch (cognitoError) {
       // Edge Case 9: Handle specific Cognito errors
       console.error('Cognito SignUp Error:', cognitoError);
-      
+
       let message = 'Failed to create user account';
       let statusCode = 500;
 
       console.log('Cognito Error:', cognitoError);
 
       switch (cognitoError.code) {
-        case 'UsernameExistsException':
-          message = 'An account with this email already exists. Please log in.';
-          statusCode = 409;
-          break;
-        case 'InvalidPasswordException':
-          message = 'Password does not meet security requirements';
-          statusCode = 400;
-          break;
-        case 'InvalidParameterException':
-          message = 'Invalid account information provided';
-          statusCode = 400;
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many requests. Please try again later';
-          statusCode = 429;
-          break;
-        case 'LimitExceededException':
-          message = 'Account creation limit exceeded';
-          statusCode = 429;
-          break;
-        case 'NotAuthorizedException':
-          message = 'Account creation not authorized';
-          statusCode = 403;
-          break;
-        default:
-          message = 'Failed to create user account';
-          statusCode = 500;
+      case 'UsernameExistsException':
+        message = 'An account with this email already exists. Please log in.';
+        statusCode = 409;
+        break;
+      case 'InvalidPasswordException':
+        message = 'Password does not meet security requirements';
+        statusCode = 400;
+        break;
+      case 'InvalidParameterException':
+        message = 'Invalid account information provided';
+        statusCode = 400;
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many requests. Please try again later';
+        statusCode = 429;
+        break;
+      case 'LimitExceededException':
+        message = 'Account creation limit exceeded';
+        statusCode = 429;
+        break;
+      case 'NotAuthorizedException':
+        message = 'Account creation not authorized';
+        statusCode = 403;
+        break;
+      default:
+        message = 'Failed to create user account';
+        statusCode = 500;
       }
 
       return createResponse(statusCode, {
@@ -225,7 +225,7 @@ async function emailsignUp(event) {
 
   } catch (error) {
     console.error('SignUp Error:', error);
-    
+
     let message = 'Failed to create user';
     let statusCode = 500;
 
@@ -307,7 +307,7 @@ async function phoneSignUp(event){
         message: 'Phone number must be in E.164 format (e.g., +1234567890)'
       });
     }
-    
+
     if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
       console.error('Missing required environment variables');
       return createResponse(500, {
@@ -357,33 +357,33 @@ async function phoneSignUp(event){
       let statusCode = 500;
 
       switch (cognitoError.code) {
-        case 'UsernameExistsException':
-          message = 'An account with this phone number already exists. Please log in.';
-          statusCode = 409;
-          break;
-        case 'InvalidPasswordException':
-          message = 'Password does not meet security requirements';
-          statusCode = 400;
-          break;
-        case 'InvalidParameterException':
-          message = 'Invalid account information provided';
-          statusCode = 400;
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many requests. Please try again later';
-          statusCode = 429;
-          break;
-        case 'LimitExceededException':
-          message = 'Account creation limit exceeded';
-          statusCode = 429;
-          break;
-        case 'NotAuthorizedException':
-          message = 'Account creation not authorized';
-          statusCode = 403;
-          break;
-        default:
-          message = 'Failed to create user account';
-          statusCode = 500;
+      case 'UsernameExistsException':
+        message = 'An account with this phone number already exists. Please log in.';
+        statusCode = 409;
+        break;
+      case 'InvalidPasswordException':
+        message = 'Password does not meet security requirements';
+        statusCode = 400;
+        break;
+      case 'InvalidParameterException':
+        message = 'Invalid account information provided';
+        statusCode = 400;
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many requests. Please try again later';
+        statusCode = 429;
+        break;
+      case 'LimitExceededException':
+        message = 'Account creation limit exceeded';
+        statusCode = 429;
+        break;
+      case 'NotAuthorizedException':
+        message = 'Account creation not authorized';
+        statusCode = 403;
+        break;
+      default:
+        message = 'Failed to create user account';
+        statusCode = 500;
       }
 
       return createResponse(statusCode, {
@@ -421,7 +421,7 @@ async function phoneSignUp(event){
 
   } catch (error) {
     console.error('SignUp Error:', error);
-    
+
     let message = 'Failed to create user';
     let statusCode = 500;
 
@@ -487,20 +487,20 @@ async function confirmSignUp(event) {
     await cognito.confirmSignUp(params).promise();
 
     const getUserParams = {
-        UserPoolId: USER_POOL_ID,
-        Username: email
+      UserPoolId: USER_POOL_ID,
+      Username: email
     };
 
     const userDetails = await cognito.adminGetUser(getUserParams).promise();
     const userId = userDetails.UserAttributes.find(attr => attr.Name === 'sub').Value;
     console.log("userId:", userId);
     const updateParams = {
-        TableName: SESSIONS_TABLE,
-        Key: { 'user_id': userId },
-        UpdateExpression: 'SET confirmationStatus = :status',
-        ExpressionAttributeValues: {
+      TableName: SESSIONS_TABLE,
+      Key: { 'user_id': userId },
+      UpdateExpression: 'SET confirmationStatus = :status',
+      ExpressionAttributeValues: {
             ':status': 'confirmed',
-        }
+      }
     };
     await dynamoDB.update(updateParams).promise();
 
@@ -516,30 +516,30 @@ async function confirmSignUp(event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'CodeMismatchException':
-        message = 'Invalid confirmation code';
-        statusCode = 400;
-        break;
-      case 'ExpiredCodeException':
-        message = 'Confirmation code has expired. Please request a new one.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'User is not authorized';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many failed attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      case 'UserNotFoundException':
-        message = 'User not found.';
-        statusCode = 404;
-        break;
-      default:
-        message = 'Failed to confirm user.';
-        statusCode = 500;
-        break;
+    case 'CodeMismatchException':
+      message = 'Invalid confirmation code';
+      statusCode = 400;
+      break;
+    case 'ExpiredCodeException':
+      message = 'Confirmation code has expired. Please request a new one.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'User is not authorized';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many failed attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    case 'UserNotFoundException':
+      message = 'User not found.';
+      statusCode = 404;
+      break;
+    default:
+      message = 'Failed to confirm user.';
+      statusCode = 500;
+      break;
     }
 
 
@@ -593,20 +593,20 @@ async function confirmPhoneSignUp(event) {
     await cognito.confirmSignUp(params).promise();
 
     const getUserParams = {
-        UserPoolId: USER_POOL_ID,
-        Username: phoneNumber
+      UserPoolId: USER_POOL_ID,
+      Username: phoneNumber
     };
 
     const userDetails = await cognito.adminGetUser(getUserParams).promise();
     const userId = userDetails.UserAttributes.find(attr => attr.Name === 'sub').Value;
     console.log("userId:", userId);
     const updateParams = {
-        TableName: SESSIONS_TABLE,
-        Key: { 'user_id': userId },
-        UpdateExpression: 'SET confirmationStatus = :status',
-        ExpressionAttributeValues: {
+      TableName: SESSIONS_TABLE,
+      Key: { 'user_id': userId },
+      UpdateExpression: 'SET confirmationStatus = :status',
+      ExpressionAttributeValues: {
             ':status': 'confirmed',
-        }
+      }
     };
     await dynamoDB.update(updateParams).promise();
 
@@ -622,30 +622,30 @@ async function confirmPhoneSignUp(event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'CodeMismatchException':
-        message = 'Invalid confirmation code';
-        statusCode = 400;
-        break;
-      case 'ExpiredCodeException':
-        message = 'Confirmation code has expired. Please request a new one.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'User is not authorized';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many failed attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      case 'UserNotFoundException':
-        message = 'User not found.';
-        statusCode = 404;
-        break;
-      default:
-        message = 'Failed to confirm user.';
-        statusCode = 500;
-        break;
+    case 'CodeMismatchException':
+      message = 'Invalid confirmation code';
+      statusCode = 400;
+      break;
+    case 'ExpiredCodeException':
+      message = 'Confirmation code has expired. Please request a new one.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'User is not authorized';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many failed attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    case 'UserNotFoundException':
+      message = 'User not found.';
+      statusCode = 404;
+      break;
+    default:
+      message = 'Failed to confirm user.';
+      statusCode = 500;
+      break;
     }
 
 
@@ -706,27 +706,27 @@ async function forgotPasswordEmail (event)  {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'UserNotFoundException':
-      case 'InvalidParameterException':
-        message = 'The provided email is not valid.';
-        statusCode = 400;
-        break;
-      case 'InvalidLambdaResponseException':
-        message = 'The provided email is not valid or confirmed.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Password reset is not authorized for this user pool or client.';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many requests. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to initiate password reset.';
-        statusCode = 500;
-        break;
+    case 'UserNotFoundException':
+    case 'InvalidParameterException':
+      message = 'The provided email is not valid.';
+      statusCode = 400;
+      break;
+    case 'InvalidLambdaResponseException':
+      message = 'The provided email is not valid or confirmed.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Password reset is not authorized for this user pool or client.';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many requests. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to initiate password reset.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -785,27 +785,27 @@ async function forgotPasswordPhone (event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'UserNotFoundException':
-      case 'InvalidParameterException':
-        message = 'The provided phone number is not valid.';
-        statusCode = 400;
-        break;
-      case 'InvalidLambdaResponseException':
-        message = 'The provided phone number is not valid or confirmed.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Password reset is not authorized for this user pool or client.';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many requests. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to initiate password reset.';
-        statusCode = 500;
-        break;
+    case 'UserNotFoundException':
+    case 'InvalidParameterException':
+      message = 'The provided phone number is not valid.';
+      statusCode = 400;
+      break;
+    case 'InvalidLambdaResponseException':
+      message = 'The provided phone number is not valid or confirmed.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Password reset is not authorized for this user pool or client.';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many requests. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to initiate password reset.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -865,34 +865,34 @@ async function emailForgetResetPassword (event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'CodeMismatchException':
-        message = 'Invalid or expired confirmation code.';
-        statusCode = 400;
-        break;
-      case 'ExpiredCodeException':
-        message = 'Confirmation code has expired. Please request a new one.';
-        statusCode = 400;
-        break;
-      case 'InvalidPasswordException':
-        message = 'Password does not meet security requirements.';
-        statusCode = 400;
-        break;
-      case 'UserNotFoundException':
-        message = 'The provided email is not valid.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Password reset is not authorized for this user pool or client.';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many failed attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to reset password.';
-        statusCode = 500;
-        break;
+    case 'CodeMismatchException':
+      message = 'Invalid or expired confirmation code.';
+      statusCode = 400;
+      break;
+    case 'ExpiredCodeException':
+      message = 'Confirmation code has expired. Please request a new one.';
+      statusCode = 400;
+      break;
+    case 'InvalidPasswordException':
+      message = 'Password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'The provided email is not valid.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Password reset is not authorized for this user pool or client.';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many failed attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -953,34 +953,34 @@ async function phoneForgetResetPassword (event)  {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'CodeMismatchException':
-        message = 'Invalid or expired confirmation code.';
-        statusCode = 400;
-        break;
-      case 'ExpiredCodeException':
-        message = 'Confirmation code has expired. Please request a new one.';
-        statusCode = 400;
-        break;
-      case 'InvalidPasswordException':
-        message = 'Password does not meet security requirements.';
-        statusCode = 400;
-        break;
-      case 'UserNotFoundException':
-        message = 'The provided phone number is not valid.';
-        statusCode = 400;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Password reset is not authorized for this user pool or client.';
-        statusCode = 403;
-        break;
-      case 'LimitExceededException':
-        message = 'Too many failed attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to reset password.';
-        statusCode = 500;
-        break;
+    case 'CodeMismatchException':
+      message = 'Invalid or expired confirmation code.';
+      statusCode = 400;
+      break;
+    case 'ExpiredCodeException':
+      message = 'Confirmation code has expired. Please request a new one.';
+      statusCode = 400;
+      break;
+    case 'InvalidPasswordException':
+      message = 'Password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'The provided phone number is not valid.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Password reset is not authorized for this user pool or client.';
+      statusCode = 403;
+      break;
+    case 'LimitExceededException':
+      message = 'Too many failed attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -1002,18 +1002,18 @@ async function profileSetup(event) {
       });
     }
 
-    const { 
-      userId, 
-      firstName, 
-      lastName, 
-      email, 
+    const {
+      userId,
+      firstName,
+      lastName,
+      email,
       phone, 
-      institutionName, 
-      schoolName, 
-      grades, 
-      subjects, 
-      experienceLevel, 
-      preferences 
+      institutionName,
+      schoolName,
+      grades,
+      subjects,
+      experienceLevel,
+      preferences
     } = JSON.parse(event.body);
 
     // Validate required fields
@@ -1026,9 +1026,11 @@ async function profileSetup(event) {
 
     // Fetch current user data from sessions table
     const sessionsTable = SESSIONS_TABLE || 'TestUserSessions';
-    
+
     let currentUserData = null;
     let roleId = null;
+    let fetchedUserId = null;
+
     try {
       const sessionResult = await dynamoDB.get({
         TableName: sessionsTable,
@@ -1037,13 +1039,13 @@ async function profileSetup(event) {
 
       if (sessionResult.Item) {
         currentUserData = sessionResult.Item;
-        roleId = currentUserData.role_id;
+        fetchedUserId =currentUserData.user_id;
       }
     } catch (sessionError) {
       console.error('Error fetching user from sessions table:', sessionError);
     }
 
-    if (!roleId) {
+    if (!fetchedUserId) {
       return createResponse(400, {
         success: false,
         message: 'User not found in session. Please login again.'
@@ -1174,16 +1176,16 @@ async function profileSetup(event) {
       message: 'Profile setup completed successfully',
       data: {
         user_id: userId,
-        firstName: updatedUserData.firstName || '',
-        lastName: updatedUserData.lastName || '',
-        email: updatedUserData.email || '',
-        phone: updatedUserData.phone || '',
-        institutionName: updatedUserData.institutionName || '',
-        schoolName: updatedUserData.schoolName || '',
-        grades: updatedUserData.grades || [],
-        subjects: updatedUserData.subjects || [],
-        experienceLevel: updatedUserData.experienceLevel || '',
-        preferences: updatedUserData.preferences || [],
+        firstName: updatedUserData.firstName || firstName || '',
+        lastName: updatedUserData.lastName || lastName || '',
+        email: updatedUserData.email || email || '',
+        phone: updatedUserData.phoneNumber || phone || '',
+        institutionName: updatedUserData.institutionName || institutionName || '',
+        schoolName: updatedUserData.schoolName || schoolName || '',
+        grades: updatedUserData.grades || grades || [],
+        subjects: updatedUserData.subjects || subjects || [],
+        experienceLevel: updatedUserData.experienceLevel || experienceLevel || '',
+        preferences: updatedUserData.preferences || userPreferences || [],
         role_id: updatedUserData.role_id || roleId,
         status: updatedUserData.confirmationStatus || 'active',
         created_at: updatedUserData.created_at || timestamp,

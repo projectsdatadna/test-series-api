@@ -1,7 +1,5 @@
 service: test-api
 
-useDotenv: true
-
 provider:
   name: aws
   runtime: nodejs18.x
@@ -12,7 +10,7 @@ provider:
   environment:
     NODE_ENV: ${self:provider.stage}
     CLAUDE_API_KEY: ${env:CLAUDE_API_KEY, ''}
-    USER_POOL_ID: ${env:USER_POOL_ID}
+    USER_POOL_ID: ${env:USER_POOL_ID, ''}
     CLIENT_ID: ${env:CLIENT_ID, ''}
     CLIENT_SECRET: ${env:CLIENT_SECRET, ''}
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME, 'test-series-books'}
@@ -31,7 +29,16 @@ provider:
     SUBJECTS_TABLE: ${env:SUBJECTS_TABLE, 'SubjectsTable'}
     CHAPTERS_TABLE: ${env:CHAPTERS_TABLE, 'ChaptersTable'}
     BOOK_FILES_TABLE: ${env:BOOK_FILES_TABLE, 'BookFilesTable'}
+    SECTIONS_TABLE: ${env:SECTIONS_TABLE, 'SectionsTable'}
     ADAPTIVE_CONTENT_LIBRARY_TABLE: ${env:ADAPTIVE_CONTENT_LIBRARY_TABLE, 'AdaptiveContentLibrary'}
+    AZURE_OPENAI_API_KEY: ${env:AZURE_OPENAI_API_KEY, ''}
+    AZURE_OPENAI_ENDPOINT: ${env:AZURE_OPENAI_ENDPOINT, ''}
+    AZURE_OPENAI_DEPLOYMENT_NAME: ${env:AZURE_OPENAI_DEPLOYMENT_NAME, 'text-embedding-3-large'}
+    AZURE_OPENAI_API_VERSION: ${env:AZURE_OPENAI_API_VERSION, '2024-02-15-preview'}
+    DYNAMODB_TABLE_NAME: ${env:DYNAMODB_TABLE_NAME, 'documents'}
+    CHUNK_SIZE: ${env:CHUNK_SIZE, '1000'}
+    CHUNK_OVERLAP: ${env:CHUNK_OVERLAP, '200'}
+    SIMILARITY_THRESHOLD: ${env:SIMILARITY_THRESHOLD, '0.7'}
   iam:
     role:
       statements:
@@ -77,14 +84,20 @@ functions:
   api:
     handler: index.handler
     description: Express.js REST API for Course Management
+    memorySize: 1024
+    timeout: 60
     events:
       - httpApi:
           path: /{proxy+}
           method: ANY
+          payload:
+            maxRequestSize: 104857600
       - httpApi:
           path: /
           method: ANY
-  
+          payload:
+            maxRequestSize: 104857600
+
 resources:
   Description: Test API - Course Management System with AI Integration
   Resources:
@@ -297,6 +310,59 @@ resources:
           - AttributeName: contentId
             KeyType: RANGE
 
+    DocumentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: documentId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: documentId
+            KeyType: HASH
+
+    SectionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SECTIONS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: chapterId
+            AttributeType: S
+          - AttributeName: sectionId
+            AttributeType: S
+          - AttributeName: syllabusId
+            AttributeType: S
+          - AttributeName: standardId
+            AttributeType: S
+          - AttributeName: subjectId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: chapterId
+            KeyType: HASH
+          - AttributeName: sectionId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: syllabus-index
+            KeySchema:
+              - AttributeName: syllabusId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: standard-index
+            KeySchema:
+              - AttributeName: standardId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: subject-index
+            KeySchema:
+              - AttributeName: subjectId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
 package:
   exclude:
     - .git/**
@@ -314,7 +380,9 @@ package:
     - dist/**
     - build/**
 
-plugins: []
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
 
 custom:
   serverless-offline:

@@ -43,6 +43,7 @@ const s3UploadRoutes = require("../modules/s3-upload/routes");
 const fileHierarchyRoutes = require("../modules/file-hierarchy/routes");
 const bookUploadRoutes = require("../modules/book-upload/routes");
 const adaptiveContentLibraryRoutes = require("../modules/adaptive-content-library/routes");
+const ragRoutes = require('../modules/rag/routes');
 
 /**
  * Register all routes with the Express app
@@ -99,6 +100,7 @@ function registerRoutes(app) {
   app.use('/adaptive-content-library', adaptiveContentLibraryRoutes); // Adaptive content library routes
   app.use('/s3-upload', s3UploadRoutes); // S3 pre-signed URL routes for large file uploads
   app.use('/book-upload', bookUploadRoutes); // Book upload with chapter creation
+  app.use('/rag', ragRoutes); // RAG (Retrieval-Augmented Generation) routes - TEMPORARILY DISABLED
 
   // ============ ROOT-LEVEL ROUTES (Must come AFTER namespaced routes) ============
   // ⚠️ CRITICAL: These routes use generic patterns like /:id and must be registered last
@@ -125,7 +127,7 @@ function registerRoutes(app) {
  */
 function getRouteSummary() {
   return {
-    totalModules: 37,
+    totalModules: 38,
     categories: {
       'Core Auth & Users': ['auth', 'users', 'roles', 'profiles', 'sessions'],
       'System Management': ['audit-logs'],
@@ -136,7 +138,7 @@ function getRouteSummary() {
       'Exam Management': ['exams', 'questions', 'question-options', 'exam-questions', 'answers'],
       'Learning Tools': ['flashcards', 'user-notes'],
       'Analytics & Reporting': ['material-analytics', 'error-bank', 'results'],
-      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 'adaptive-content-library', 's3-upload', 'book-upload']
+      'AI Integration': ['claude-ai', 'anthropic-upload', 'adaptive-content', 'adaptive-content-library', 's3-upload', 'book-upload', 'rag']
     },
     routePatterns: {
       'Standard Namespace': ['/auth/*', '/users/*', '/courses/*', '/materials/*', '/exams/*', '/hierarchy/*', '/book-upload/*', '/adaptive-content-library/*'],

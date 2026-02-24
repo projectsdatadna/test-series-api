@@ -23,13 +23,13 @@ const headers = {
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const USERPOOLID=process.env.USER_POOL_ID;
+const USER_POOL_ID = process.env.USER_POOL_ID;
 
 const verifier = CognitoJwtVerifier.create({
-  userPoolId: USERPOOLID,
-  tokenUse: 'access',
-  clientId: CLIENT_ID,
-});
+      userPoolId: USER_POOL_ID,
+      tokenUse: 'access',
+      clientId: CLIENT_ID,
+    });
 
 const createResponse = (statusCode, body) => {
   return {
@@ -100,7 +100,7 @@ async function jwtLoginEmail (event) {
 
     // Get user details from Cognito
     const getUserParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: email
     };
 
@@ -324,7 +324,7 @@ async function jwtLoginPhone (event) {
 
     // Get user details
     const getUserParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: formattedPhone
     };
 
@@ -574,13 +574,13 @@ async function jwtEmailLogout (event) {
     }
 
     const getUserParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: email
     }
     await cognito.adminGetUser(getUserParams).promise();
 
     const signOutParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: email
     };
    
@@ -633,14 +633,14 @@ async function jwtPhoneLogout (event) {
     const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
     const getUserParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: formattedPhone
     };
     
     await cognito.adminGetUser(getUserParams).promise();
 
     const signOutParams = {
-      UserPoolId: USERPOOLID,
+      UserPoolId: USER_POOL_ID,
       Username: formattedPhone
     };
    
@@ -703,8 +703,8 @@ async function jwtResetPasswordEmail(event) {
             });
         }
 
-        if (!process.env.USERPOOLID) {
-            console.error('Missing USERPOOLID environment variable');
+        if (!process.env.USER_POOL_ID) {
+            console.error('Missing USER_POOL_ID environment variable');
             return createResponse(500, {
                 success: false,
                 message: 'Server configuration error'
@@ -712,7 +712,7 @@ async function jwtResetPasswordEmail(event) {
         }
 
         const params = {
-            UserPoolId: process.env.USERPOOLID,
+            UserPoolId: process.env.USER_POOL_ID,
             Username: email,
             Password: newPassword,
             Permanent: false
@@ -778,8 +778,8 @@ async function jwtResetPasswordPhone (event) {
             });
         }
 
-        if (!process.env.USERPOOLID) {
-            console.error('Missing USERPOOLID environment variable');
+        if (!process.env.USER_POOL_ID) {
+            console.error('Missing USER_POOL_ID environment variable');
             return createResponse(500, {
                 success: false,
                 message: 'Server configuration error'
@@ -790,7 +790,7 @@ async function jwtResetPasswordPhone (event) {
         const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
         const params = {
-            UserPoolId: process.env.USERPOOLID,
+            UserPoolId: process.env.USER_POOL_ID,
             Username: formattedPhone,
             Password: newPassword,
             Permanent: false // User must change on next login
@@ -862,7 +862,7 @@ async function jwtResendConfirmationCode (event) {
       });
     }
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !USERPOOLID) {
+    if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
       console.error('Missing required environment variables');
       return createResponse(500, {
         success: false,
@@ -876,7 +876,7 @@ async function jwtResendConfirmationCode (event) {
     
     try {
       const getUserParams = {
-        UserPoolId: USERPOOLID,
+        UserPoolId: USER_POOL_ID,
         Username: email
       };
 
@@ -1016,7 +1016,7 @@ async function jwtResendConfirmationCodePhone (event) {
       });
     }
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !USERPOOLID) {
+    if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
       console.error('Missing required environment variables');
       return createResponse(500, {
         success: false,
@@ -1033,7 +1033,7 @@ async function jwtResendConfirmationCodePhone (event) {
     
     try {
       const getUserParams = {
-        UserPoolId: USERPOOLID,
+        UserPoolId: USER_POOL_ID,
         Username: formattedPhone
       };
 

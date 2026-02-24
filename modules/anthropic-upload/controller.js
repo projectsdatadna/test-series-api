@@ -12,7 +12,10 @@ try {
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'ap-south-1',
   requestChecksumCalculation: 'WHEN_REQUIRED',
-  responseChecksumValidation: 'WHEN_REQUIRED'
+  responseChecksumValidation: 'WHEN_REQUIRED',
+  maxAttempts: 2,
+  connectionTimeout: 5000,
+  requestTimeout: 60000 // Increased from 10s to 60s for large file downloads
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
@@ -44,34 +47,67 @@ async function getUploadUrls(req, res) {
       });
     }
 
-    const uploadUrls = [];
+    console.log(`[Anthropic Upload] Generating pre-signed URLs for ${files.length} file(s)`);
+    const startTime = Date.now();
 
-    for (const file of files) {
-      const fileKey = `uploads/${req.user.userId}/${Date.now()}-${file.filename}`;
+    // Generate all URLs in parallel instead of sequentially
+    const uploadUrlPromises = files.map(async (file) => {
+      try {
+        const fileKey = `uploads/${req.user.userId}/${Date.now()}-${file.filename}`;
 
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: fileKey,
-        ContentType: file.contentType,
-      });
+        const command = new PutObjectCommand({
+          Bucket: BUCKET_NAME,
+          Key: fileKey,
+          ContentType: file.contentType,
+        });
 
-      const uploadUrl = await getSignedUrl(s3Client, command, {
-        expiresIn: 3600 // 1 hour
-      });
+        const uploadUrl = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600 // 1 hour
+        });
 
-      uploadUrls.push({
-        filename: file.filename,
-        uploadUrl,
-        fileKey
+        return {
+          filename: file.filename,
+          uploadUrl,
+          fileKey,
+          success: true
+        };
+      } catch (error) {
+        console.error(`Error generating URL for ${file.filename}:`, error);
+        return {
+          filename: file.filename,
+          success: false,
+          error: error.message
+        };
+      }
+    });
+
+    // Wait for all URLs to be generated in parallel
+    const results = await Promise.all(uploadUrlPromises);
+    
+    const duration = Date.now() - startTime;
+    console.log(`[Anthropic Upload] Generated URLs in ${duration}ms`);
+
+    // Check if any failed
+    const failedFiles = results.filter(r => !r.success);
+    if (failedFiles.length > 0) {
+      console.error(`[Anthropic Upload] Failed to generate URLs for ${failedFiles.length} file(s)`);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate some upload URLs',
+        failedFiles: failedFiles
       });
     }
+
+    const uploadUrls = results.filter(r => r.success);
 
     res.status(200).json({
       success: true,
       message: 'Pre-signed URLs generated',
       data: {
         uploadUrls,
-        expiresIn: 3600
+        expiresIn: 3600,
+        generatedCount: uploadUrls.length,
+        generationTimeMs: duration
       }
     });
 
@@ -150,7 +186,8 @@ async function confirmUpload(req, res) {
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         'Content-Length': body.length.toString()
       },
-      body: body
+      body: body,
+      timeout: 30000 // 30 second timeout for Anthropic API
     });
 
     if (!anthropicResponse.ok) {
