@@ -26,10 +26,10 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
 const verifier = CognitoJwtVerifier.create({
-  userPoolId: USER_POOL_ID,
-  tokenUse: 'access',
-  clientId: CLIENT_ID,
-});
+      userPoolId: USER_POOL_ID,
+      tokenUse: 'access',
+      clientId: CLIENT_ID,
+    });
 
 const createResponse = (statusCode, body) => {
   return {

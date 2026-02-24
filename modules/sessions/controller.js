@@ -18,7 +18,7 @@ const USERS_TABLE = process.env.USERS_TABLE || 'Users';
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-key';
-const SESSION_EXPIRY_HOURS = parseInt(process.env.SESSION_EXPIRY_HOURS) || 24;
+const SESSION_EXPIRY_HOURS = parseInt(process.env.SESSION_EXPIRY_HOURS) || 168; // 1 week (7 days)
 
 const headers = {
   "Access-Control-Allow-Origin": "*",

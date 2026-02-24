@@ -11,10 +11,22 @@ router.post('/upload', controller.uploadBookFile);
 // Get all books
 router.get('/books', controller.getAllBooks);
 
-// Get chapters for a subject
-router.get('/chapters/:subjectId', controller.getChaptersForSubject);
+// Get book details
+router.get('/books/:bookId/:fileId', controller.getBookDetails);
+
+// Download book file
+router.get('/download/:bookId/:fileId', controller.downloadBook);
+
+// Get divisions for 9th and 10th English
+router.get('/divisions/:standardId/:subjectId', controller.getDivisionsForEnglish);
+
+// Get chapters for a subject (with optional division filter)
+router.get('/chapters/:subjectId/:standardId/:syllabusId', controller.getChaptersForSubject);
 
 // Get book files for a chapter
 router.get('/files/:chapterId', controller.getBookFilesForChapter);
+
+// Delete book file
+router.delete('/books/:bookId/:fileId', controller.deleteBook);
 
 module.exports = router;

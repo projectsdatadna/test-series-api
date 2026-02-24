@@ -36,11 +36,11 @@
       2
     ],
     "linebreak-style": [
-      "warn",
+      "off",
       "unix"
     ],
     "quotes": [
-      "warn",
+      "off",
       "single",
       {
         "avoidEscape": true
