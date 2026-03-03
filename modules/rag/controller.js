@@ -7,6 +7,356 @@ const s3 = new AWS.S3({
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'test-series-books';
+
+// NEW: Batch generate presigned URLs for multiple files
+async function batchGeneratePresignedUrls(req, res) {
+  try {
+    const { files } = req.body;
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'files array is required and must not be empty'
+      });
+    }
+
+    if (files.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 50 files allowed per batch'
+      });
+    }
+
+    const MAX_FILE_SIZE = 500 * 1024 * 1024;
+    const results = [];
+
+    for (const file of files) {
+      const { fileName, fileSize, documentId } = file;
+
+      // Validate each file
+      if (!fileName || !documentId) {
+        results.push({
+          fileName: fileName || 'unknown',
+          documentId: documentId || 'unknown',
+          success: false,
+          error: 'fileName and documentId are required'
+        });
+        continue;
+      }
+
+      if (fileSize && fileSize > MAX_FILE_SIZE) {
+        results.push({
+          fileName,
+          documentId,
+          success: false,
+          error: 'File size exceeds 500MB limit'
+        });
+        continue;
+      }
+
+      try {
+        const fileKey = `rag/${documentId}/${Date.now()}-${fileName}`;
+
+        const presignedUrl = s3.getSignedUrl('putObject', {
+          Bucket: S3_BUCKET,
+          Key: fileKey,
+          ContentType: 'application/pdf',
+          Expires: 3600
+        });
+
+        results.push({
+          fileName,
+          documentId,
+          success: true,
+          data: {
+            presignedUrl,
+            fileKey,
+            expiresIn: 3600
+          }
+        });
+      } catch (error) {
+        results.push({
+          fileName,
+          documentId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        results,
+        summary: {
+          total: files.length,
+          successful: successCount,
+          failed: failureCount
+        }
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+async function batchProcessFromS3(req, res) {
+  try {
+    const { files } = req.body;
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'files array is required and must not be empty'
+      });
+    }
+
+    if (files.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 50 files allowed per batch'
+      });
+    }
+
+    const results = [];
+    const { processPDFToSections } = require('./pdfProcessor');
+    const hierarchyService = require('../file-hierarchy/service');
+
+    // Helper function to convert term format
+    const convertTermFormat = (termStr) => {
+      if (!termStr) return null;
+      if (termStr === 'TERM_1' || termStr === 'TERM_2' || termStr === 'TERM_3') {
+        return termStr;
+      }
+      const termMap = {
+        'Term I': 'TERM_1',
+        'Term II': 'TERM_2',
+        'Term III': 'TERM_3'
+      };
+      return termMap[termStr] || termStr;
+    };
+
+    // Process each file
+    for (const file of files) {
+      const {
+        fileKey,
+        documentId,
+        fileName,
+        syllabusId,
+        standardId,
+        subjectId,
+        chapterName,
+        division,
+        bookType,
+        pageRanges,
+        splitPattern,
+        sectionTitles,
+        term,
+        unitSectionTitles
+      } = file;
+
+      // Validate required fields
+      if (!fileKey || !documentId) {
+        results.push({
+          fileName: fileName || 'unknown',
+          documentId: documentId || 'unknown',
+          success: false,
+          error: 'fileKey and documentId are required'
+        });
+        continue;
+      }
+
+      try {
+        // Map bookType to division if needed
+        let finalDivision = division;
+        if (bookType && !division) {
+          const bookTypeMap = {
+            'main': 'Chapters',
+            'supplementary': 'Poems',
+            'workbook': 'Workbook'
+          };
+          finalDivision = bookTypeMap[bookType.toLowerCase()];
+          if (!finalDivision) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: 'bookType must be one of: main, supplementary, workbook'
+            });
+            continue;
+          }
+        }
+
+        // Detect TN State Board
+        const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
+
+        // Validate term for TN State Board
+        if (isTNStateBoard && term) {
+          const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
+          const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
+          const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
+          if (!allValidTerms.includes(term)) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: `term must be one of: ${validTermsFrontend.join(', ')} or ${validTermsDatabase.join(', ')}`
+            });
+            continue;
+          }
+        }
+
+        // Validate division for 9th and 10th English
+        const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
+                               (subjectId === 'SUB_ENG' || subjectId === 'English');
+        if (isEnglish9or10 && !finalDivision) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: 'division or bookType is required for 9th and 10th English'
+          });
+          continue;
+        }
+
+        // Validate division value
+        const validDivisions = ['Chapters', 'Poems', 'Workbook'];
+        if (finalDivision && !validDivisions.includes(finalDivision)) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: `division must be one of: ${validDivisions.join(', ')}`
+          });
+          continue;
+        }
+
+        // Validate splitPattern
+        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+        if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: `splitPattern must be one of: ${validSplitPatterns.join(', ')}`
+          });
+          continue;
+        }
+
+        // Verify file exists in S3
+        await s3.headObject({
+          Bucket: S3_BUCKET,
+          Key: fileKey
+        }).promise();
+
+        // Download file from S3
+        const s3Object = await s3.getObject({
+          Bucket: S3_BUCKET,
+          Key: fileKey
+        }).promise();
+
+        const pdfBuffer = s3Object.Body;
+        const dbTerm = convertTermFormat(term);
+
+        let chapterData = null;
+
+        // Create chapter in hierarchy (skip for TN State Board)
+        if (syllabusId && standardId && subjectId && chapterName && !isTNStateBoard) {
+          try {
+            chapterData = await hierarchyService.createChapter(
+              subjectId,
+              chapterName,
+              documentId,
+              syllabusId,
+              standardId,
+              finalDivision || null,
+              dbTerm
+            );
+          } catch (e) {
+            console.warn(`[BATCH] Hierarchy creation failed for ${fileName}:`, e.message);
+          }
+        }
+
+        // Process PDF to sections
+        const storedSections = await processPDFToSections(pdfBuffer, {
+          chapterId: chapterData?.chapterId || documentId,
+          documentId: documentId,
+          chapterName: chapterName || fileName || null,
+          syllabusId,
+          standardId,
+          subjectId,
+          division: finalDivision || null,
+          bookType: bookType || null,
+          pageRanges: pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0 ? pageRanges : null,
+          splitPattern: splitPattern || 'regex_based',
+          sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
+          isTNStateBoard: isTNStateBoard,
+          term: term || null,
+          unitSectionTitles: unitSectionTitles || null
+        });
+
+        const splitStrategyUsed = (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0)
+          ? 'page_ranges'
+          : (splitPattern || 'regex_based');
+
+        results.push({
+          fileName,
+          documentId,
+          success: true,
+          data: {
+            totalSections: storedSections.length,
+            fileSizeMB: (pdfBuffer.length / 1024 / 1024).toFixed(2),
+            splitStrategyUsed,
+            sections: storedSections.map(s => ({
+              sectionId: s.sectionId,
+              sectionNumber: s.sectionNumber,
+              sectionTitle: s.sectionTitle,
+              totalChunks: s.totalChunks
+            }))
+          }
+        });
+
+      } catch (error) {
+        console.error(`[BATCH] Error processing ${fileName}:`, error.message);
+        results.push({
+          fileName,
+          documentId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        results,
+        summary: {
+          total: files.length,
+          successful: successCount,
+          failed: failureCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('[BATCH] Error in batchProcessFromS3:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
 async function generatePresignedUrlForRAG(req, res) {
   try {
     const { fileName, fileSize, documentId } = req.body;
@@ -66,8 +416,24 @@ async function processRAGFileFromS3(req, res) {
       bookType,
       pageRanges,
       splitPattern,
-      sectionTitles
+      sectionTitles,
+      term,
+      unitSectionTitles  // NEW: Section titles for each unit
     } = req.body;
+
+    console.log('[RAG] processRAGFileFromS3 - Request body:', {
+      fileKey,
+      documentId,
+      fileName,
+      syllabusId,
+      standardId,
+      subjectId,
+      chapterName,
+      division,
+      bookType,
+      term: term || 'NOT PROVIDED',
+      unitSectionTitles: unitSectionTitles ? 'PROVIDED' : 'NOT PROVIDED'
+    });
 
     if (!fileKey || !documentId) {
       return res.status(400).json({
@@ -98,6 +464,26 @@ async function processRAGFileFromS3(req, res) {
     // Detect TN State Board books
     const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
     console.log(`[RAG] Detected TN State Board book: ${isTNStateBoard}, syllabusId: ${syllabusId}`);
+
+    // Validate term for TN State Board books
+    if (isTNStateBoard) {
+      if (term) {
+        // Accept both frontend format (Term I) and database format (TERM_1)
+        const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
+        const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
+        const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
+        
+        if (!allValidTerms.includes(term)) {
+          return res.status(400).json({
+            success: false,
+            message: `term must be one of: ${validTermsFrontend.join(', ')} or ${validTermsDatabase.join(', ')}`
+          });
+        }
+        console.log(`[RAG] TN State Board term: ${term}`);
+      } else {
+        console.log(`[RAG] WARNING: TN State Board book uploaded without term parameter`);
+      }
+    }
 
     // Validate division for 9th and 10th English
     const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
@@ -152,6 +538,47 @@ async function processRAGFileFromS3(req, res) {
       }
     }
 
+    // Validate unitSectionTitles if provided (for TN State Board books)
+    if (unitSectionTitles) {
+      if (!Array.isArray(unitSectionTitles)) {
+        return res.status(400).json({
+          success: false,
+          message: 'unitSectionTitles must be an array'
+        });
+      }
+      
+      // Validate structure: array of objects with unitNumber and sections
+      const invalidUnits = unitSectionTitles.filter(unit => 
+        !unit.unitNumber || 
+        typeof unit.unitNumber !== 'number' ||
+        !Array.isArray(unit.sections) ||
+        unit.sections.length === 0
+      );
+      
+      if (invalidUnits.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each unit in unitSectionTitles must have unitNumber (number) and sections (array of strings)'
+        });
+      }
+      
+      // Validate section titles are non-empty strings
+      for (const unit of unitSectionTitles) {
+        const invalidSections = unit.sections.filter(s => typeof s !== 'string' || s.trim().length === 0);
+        if (invalidSections.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Unit ${unit.unitNumber}: All section titles must be non-empty strings`
+          });
+        }
+      }
+      
+      console.log('[RAG] unitSectionTitles validated:', unitSectionTitles.map(u => ({
+        unitNumber: u.unitNumber,
+        sectionCount: u.sections.length
+      })));
+    }
+
     // Verify file exists
     await s3.headObject({
       Bucket: S3_BUCKET,
@@ -168,21 +595,63 @@ async function processRAGFileFromS3(req, res) {
 
     const hierarchyService = require('../file-hierarchy/service');
 
+    // Convert term format to database format (TERM_1, TERM_2, TERM_3)
+    const convertTermFormat = (termStr) => {
+      if (!termStr) return null;
+      
+      // If already in database format, return as-is
+      if (termStr === 'TERM_1' || termStr === 'TERM_2' || termStr === 'TERM_3') {
+        return termStr;
+      }
+      
+      // Convert from frontend format to database format
+      const termMap = {
+        'Term I': 'TERM_1',
+        'Term II': 'TERM_2',
+        'Term III': 'TERM_3'
+      };
+      return termMap[termStr] || termStr;
+    };
+
+    const dbTerm = convertTermFormat(term);
+    
+    console.log('[RAG] Term conversion:', {
+      originalTerm: term,
+      convertedTerm: dbTerm,
+      isTNStateBoard
+    });
+
     let chapterData = null;
 
-    if (syllabusId && standardId && subjectId && chapterName) {
+    // For TN State Board books, skip creating main chapter as we'll create unit chapters instead
+    if (syllabusId && standardId && subjectId && chapterName && !isTNStateBoard) {
       try {
+        console.log('[RAG] Calling createChapter with parameters:', {
+          subjectId,
+          chapterName,
+          fileId: documentId,
+          syllabusId,
+          standardId,
+          division: finalDivision || null,
+          term: dbTerm
+        });
+        
         chapterData = await hierarchyService.createChapter(
           subjectId,
           chapterName,
           documentId,
           syllabusId,
           standardId,
-          finalDivision || null
+          finalDivision || null,
+          dbTerm
         );
+        
+        console.log('[RAG] createChapter returned:', chapterData);
       } catch (e) {
         console.warn('Hierarchy creation failed:', e.message);
       }
+    } else if (isTNStateBoard) {
+      console.log('[RAG] Skipping main chapter creation for TN State Board book - will create unit chapters instead');
     }
 
     const { processPDFToSections } = require('./pdfProcessor');
@@ -193,12 +662,14 @@ async function processRAGFileFromS3(req, res) {
       standardId,
       subjectId,
       division: finalDivision || null,
-      splitPattern: splitPattern || 'regex_based'
+      splitPattern: splitPattern || 'regex_based',
+      term: term || null
     });
 
     const storedSections = await processPDFToSections(pdfBuffer, {
       chapterId: chapterData?.chapterId || documentId,
       documentId: documentId,
+      chapterName: chapterName || fileName || null,  // Use fileName as fallback
       syllabusId,
       standardId,
       subjectId,
@@ -207,7 +678,9 @@ async function processRAGFileFromS3(req, res) {
       pageRanges: pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0 ? pageRanges : null,
       splitPattern: splitPattern || 'regex_based',
       sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
-      isTNStateBoard: isTNStateBoard
+      isTNStateBoard: isTNStateBoard,
+      term: term || null,
+      unitSectionTitles: unitSectionTitles || null
     });
 
     console.log('[RAG] DEBUG: Returned from processPDFToSections, stored sections:', storedSections.map(s => ({
@@ -446,7 +919,260 @@ async function splitByPageRangesAPI(req, res) {
   }
 }
 
+async function batchProcessFromS3(req, res) {
+  try {
+    const { files } = req.body;
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'files array is required and must not be empty'
+      });
+    }
+
+    if (files.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 50 files allowed per batch'
+      });
+    }
+
+    const results = [];
+    const { processPDFToSections } = require('./pdfProcessor');
+    const hierarchyService = require('../file-hierarchy/service');
+
+    // Helper function to convert term format
+    const convertTermFormat = (termStr) => {
+      if (!termStr) return null;
+      if (termStr === 'TERM_1' || termStr === 'TERM_2' || termStr === 'TERM_3') {
+        return termStr;
+      }
+      const termMap = {
+        'Term I': 'TERM_1',
+        'Term II': 'TERM_2',
+        'Term III': 'TERM_3'
+      };
+      return termMap[termStr] || termStr;
+    };
+
+    // Process each file
+    for (const file of files) {
+      const {
+        fileKey,
+        documentId,
+        fileName,
+        syllabusId,
+        standardId,
+        subjectId,
+        chapterName,
+        division,
+        bookType,
+        pageRanges,
+        splitPattern,
+        sectionTitles,
+        term,
+        unitSectionTitles
+      } = file;
+
+      // Validate required fields
+      if (!fileKey || !documentId) {
+        results.push({
+          fileName: fileName || 'unknown',
+          documentId: documentId || 'unknown',
+          success: false,
+          error: 'fileKey and documentId are required'
+        });
+        continue;
+      }
+
+      try {
+        // Map bookType to division if needed
+        let finalDivision = division;
+        if (bookType && !division) {
+          const bookTypeMap = {
+            'main': 'Chapters',
+            'supplementary': 'Poems',
+            'workbook': 'Workbook'
+          };
+          finalDivision = bookTypeMap[bookType.toLowerCase()];
+          if (!finalDivision) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: 'bookType must be one of: main, supplementary, workbook'
+            });
+            continue;
+          }
+        }
+
+        // Detect TN State Board
+        const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
+
+        // Validate term for TN State Board
+        if (isTNStateBoard && term) {
+          const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
+          const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
+          const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
+          if (!allValidTerms.includes(term)) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: `term must be one of: ${validTermsFrontend.join(', ')} or ${validTermsDatabase.join(', ')}`
+            });
+            continue;
+          }
+        }
+
+        // Validate division for 9th and 10th English
+        const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
+                               (subjectId === 'SUB_ENG' || subjectId === 'English');
+        if (isEnglish9or10 && !finalDivision) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: 'division or bookType is required for 9th and 10th English'
+          });
+          continue;
+        }
+
+        // Validate division value
+        const validDivisions = ['Chapters', 'Poems', 'Workbook'];
+        if (finalDivision && !validDivisions.includes(finalDivision)) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: `division must be one of: ${validDivisions.join(', ')}`
+          });
+          continue;
+        }
+
+        // Validate splitPattern
+        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+        if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
+          results.push({
+            fileName,
+            documentId,
+            success: false,
+            error: `splitPattern must be one of: ${validSplitPatterns.join(', ')}`
+          });
+          continue;
+        }
+
+        // Verify file exists in S3
+        await s3.headObject({
+          Bucket: S3_BUCKET,
+          Key: fileKey
+        }).promise();
+
+        // Download file from S3
+        const s3Object = await s3.getObject({
+          Bucket: S3_BUCKET,
+          Key: fileKey
+        }).promise();
+
+        const pdfBuffer = s3Object.Body;
+        const dbTerm = convertTermFormat(term);
+
+        let chapterData = null;
+
+        // Create chapter in hierarchy (skip for TN State Board)
+        if (syllabusId && standardId && subjectId && chapterName && !isTNStateBoard) {
+          try {
+            chapterData = await hierarchyService.createChapter(
+              subjectId,
+              chapterName,
+              documentId,
+              syllabusId,
+              standardId,
+              finalDivision || null,
+              dbTerm
+            );
+          } catch (e) {
+            console.warn(`[BATCH] Hierarchy creation failed for ${fileName}:`, e.message);
+          }
+        }
+
+        // Process PDF to sections
+        const storedSections = await processPDFToSections(pdfBuffer, {
+          chapterId: chapterData?.chapterId || documentId,
+          documentId: documentId,
+          chapterName: chapterName || fileName || null,
+          syllabusId,
+          standardId,
+          subjectId,
+          division: finalDivision || null,
+          bookType: bookType || null,
+          pageRanges: pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0 ? pageRanges : null,
+          splitPattern: splitPattern || 'regex_based',
+          sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
+          isTNStateBoard: isTNStateBoard,
+          term: term || null,
+          unitSectionTitles: unitSectionTitles || null
+        });
+
+        const splitStrategyUsed = (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) 
+          ? 'page_ranges' 
+          : (splitPattern || 'regex_based');
+
+        results.push({
+          fileName,
+          documentId,
+          success: true,
+          data: {
+            totalSections: storedSections.length,
+            fileSizeMB: (pdfBuffer.length / 1024 / 1024).toFixed(2),
+            splitStrategyUsed,
+            sections: storedSections.map(s => ({
+              sectionId: s.sectionId,
+              sectionNumber: s.sectionNumber,
+              sectionTitle: s.sectionTitle,
+              totalChunks: s.totalChunks
+            }))
+          }
+        });
+
+      } catch (error) {
+        console.error(`[BATCH] Error processing ${fileName}:`, error.message);
+        results.push({
+          fileName,
+          documentId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        results,
+        summary: {
+          total: files.length,
+          successful: successCount,
+          failed: failureCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('[BATCH] Error in batchProcessFromS3:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
 module.exports = {
+  batchGeneratePresignedUrls,
+  batchProcessFromS3,
   generatePresignedUrlForRAG,
   processRAGFileFromS3,
   retrieveContextAPI,

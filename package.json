@@ -47,6 +47,7 @@
   "devDependencies": {
     "eslint": "^8.56.0",
     "nodemon": "^3.0.2",
+    "puppeteer": "^22.0.0",
     "serverless": "^3.40.0",
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-offline": "^13.9.0"

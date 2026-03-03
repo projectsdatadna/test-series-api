@@ -61,6 +61,30 @@ const getStandardsBysyllabus = async (syllabusId) => {
   }
 };
 
+// NEW: Get all standards with their syllabus relationships
+const getAllStandards = async () => {
+  try {
+    const result = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.STANDARDS
+      })
+    );
+    
+    // Return all standards with their syllabusId included
+    // Each standard item should have: standardId, standardName, syllabusId, linkedAt
+    const standards = (result.Items || []).map(item => ({
+      standardId: item.standardId,
+      standardName: item.standardName,
+      syllabusId: item.syllabusId,
+      linkedAt: item.linkedAt
+    }));
+    
+    return standards;
+  } catch (error) {
+    throw new Error(`Failed to fetch all standards: ${error.message}`);
+  }
+};
+
 const createStandard = async (syllabusId, standardId, standardName) => {
   try {
     const item = {
@@ -110,6 +134,63 @@ const getSubjectsByStandard = async (standardId) => {
   }
 };
 
+// NEW: Get all subjects with their standard relationships
+const getAllSubjects = async () => {
+  try {
+    // Define subject availability by standard range
+    const subjectsFor6to10 = ['SUB_TAM', 'SUB_ENG', 'SUB_MAT', 'SUB_SCI', 'SUB_SOC'];
+    const subjectsFor11to12 = ['SUB_TAM', 'SUB_ENG', 'SUB_PHY', 'SUB_CHE', 'SUB_BIO', 'SUB_MAT', 'SUB_HIS', 'SUB_GEO', 'SUB_ECO', 'SUB_POL'];
+    
+    // Fetch all subjects
+    const result = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.SUBJECTS
+      })
+    );
+    
+    const allSubjects = result.Items || [];
+    
+    // Fetch all standards to create subject-standard relationships
+    const standardsResult = await docClient.send(
+      new ScanCommand({
+        TableName: TABLES.STANDARDS
+      })
+    );
+    
+    const allStandards = standardsResult.Items || [];
+    
+    // Create subject-standard relationships
+    const subjectStandardRelationships = [];
+    
+    allStandards.forEach(standard => {
+      const standardNum = parseInt(standard.standardId.split('_')[1]);
+      let allowedSubjects = [];
+      
+      if (standardNum >= 6 && standardNum <= 10) {
+        allowedSubjects = subjectsFor6to10;
+      } else if (standardNum >= 11 && standardNum <= 12) {
+        allowedSubjects = subjectsFor11to12;
+      }
+      
+      // For each allowed subject, create a relationship entry
+      allSubjects.forEach(subject => {
+        if (allowedSubjects.includes(subject.subjectId)) {
+          subjectStandardRelationships.push({
+            subjectId: subject.subjectId,
+            subjectName: subject.subjectName,
+            standardId: standard.standardId,
+            linkedAt: subject.linkedAt || new Date().toISOString()
+          });
+        }
+      });
+    });
+    
+    return subjectStandardRelationships;
+  } catch (error) {
+    throw new Error(`Failed to fetch all subjects: ${error.message}`);
+  }
+};
+
 const createSubject = async (standardId, subjectId, subjectName) => {
   try {
     const item = {
@@ -125,22 +206,40 @@ const createSubject = async (standardId, subjectId, subjectName) => {
 };
 
 // ============ CHAPTERS ============
-const getChaptersBySubject = async (subjectId, standardId, syllabusId) => {
+const getChaptersBySubject = async (subjectId, standardId, syllabusId, term = null) => {
   try {
-    // Scan all chapters and filter by all three hierarchy fields
-    const result = await docClient.send(
-      new ScanCommand({
-        TableName: TABLES.CHAPTERS,
-        FilterExpression: 'subjectId = :subjectId AND standardId = :standardId AND syllabusId = :syllabusId',
-        ExpressionAttributeValues: {
-          ':subjectId': subjectId,
-          ':standardId': standardId,
-          ':syllabusId': syllabusId
-        }
-      })
-    );
+    // Build filter expression based on whether term is provided
+    let filterExpression = 'subjectId = :subjectId AND standardId = :standardId AND syllabusId = :syllabusId';
+    const expressionAttributeValues = {
+      ':subjectId': subjectId,
+      ':standardId': standardId,
+      ':syllabusId': syllabusId
+    };
+
+    // Add term filter if provided
+    if (term) {
+      filterExpression += ' AND #term = :term';
+      expressionAttributeValues[':term'] = term;
+    }
+
+    const scanParams = {
+      TableName: TABLES.CHAPTERS,
+      FilterExpression: filterExpression,
+      ExpressionAttributeValues: expressionAttributeValues
+    };
+
+    // Add ExpressionAttributeNames if term is used (since 'term' might be a reserved word)
+    if (term) {
+      scanParams.ExpressionAttributeNames = {
+        '#term': 'term'
+      };
+    }
+
+    // Scan all chapters and filter by hierarchy fields and optionally term
+    const result = await docClient.send(new ScanCommand(scanParams));
 
     const chapters = result.Items || [];
+    console.log(`📚 Found ${chapters.length} chapters${term ? ` for term: ${term}` : ''}`);
 
     // Fetch all book files to enrich chapters with vector data
     const booksResult = await docClient.send(
@@ -149,8 +248,6 @@ const getChaptersBySubject = async (subjectId, standardId, syllabusId) => {
       })
     );
     const books = booksResult.Items || [];
-
-    console.log(booksResult,'booksResult');
 
     // Create a map of chapterId to book files with vector data
     const chapterBooksMap = {};
@@ -183,12 +280,22 @@ const getChaptersBySubject = async (subjectId, standardId, syllabusId) => {
   }
 };
 
-const createChapter = async (subjectId, chapterName, fileId, syllabusId, standardId, division = null) => {
+const createChapter = async (subjectId, chapterName, fileId, syllabusId, standardId, division = null, term = null) => {
   try {
     // Validate all hierarchy parameters
     if (!syllabusId || !standardId || !subjectId) {
       throw new Error('Invalid hierarchy: syllabusId, standardId, subjectId required');
     }
+
+    console.log('[HIERARCHY] createChapter called with:', {
+      subjectId,
+      chapterName,
+      fileId,
+      syllabusId,
+      standardId,
+      division,
+      term
+    });
 
     const chapterId = generateChapterId();
     const item = {
@@ -204,9 +311,21 @@ const createChapter = async (subjectId, chapterName, fileId, syllabusId, standar
     // Add division field if provided (for 9th and 10th English: Chapters, Poems, Workbook)
     if (division) {
       item.division = division;
+      console.log('[HIERARCHY] Added division to item:', division);
     }
     
+    // Add term field if provided (for TN State Board: TERM_1, TERM_2, TERM_3)
+    if (term) {
+      item.term = term;
+      console.log('[HIERARCHY] Added term to item:', term);
+    }
+    
+    console.log('[HIERARCHY] Final item to be stored:', JSON.stringify(item, null, 2));
+    
     await docClient.send(new PutCommand({ TableName: TABLES.CHAPTERS, Item: item }));
+    
+    console.log('[HIERARCHY] Chapter created successfully with chapterId:', chapterId);
+    
     return item;
   } catch (error) {
     throw new Error(`Failed to create chapter: ${error.message}`);
@@ -365,8 +484,10 @@ module.exports = {
   getAllSyllabi,
   createSyllabus,
   getStandardsBysyllabus,
+  getAllStandards,
   createStandard,
   getSubjectsByStandard,
+  getAllSubjects,
   createSubject,
   getChaptersBySubject,
   createChapter,

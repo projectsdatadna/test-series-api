@@ -119,6 +119,9 @@ function splitByRegex(text, regex) {
   const seenSectionNumbers = new Set();
   
   const imagePatterns = /^\s*(?:figure|fig|image|img|photo|plate|diagram|chart|graph|table|exhibit|illustration|picture|visual|graphic|map|sketch|drawing|appendix|annex|attachment|box|sidebar|infobox)\s*[\d\.\s]*:?/i;
+  
+  // Split text into lines for better title extraction
+  const lines = text.split('\n');
 
   while ((match = regex.exec(text)) !== null) {
     const fullMatch = match[0].trim();
@@ -131,6 +134,11 @@ function splitByRegex(text, regex) {
     const numberMatch = fullMatch.match(/^(\d+(?:\.\d+)*)\s*[:|-]?\s*(.*)$/);
     const sectionNumber = numberMatch ? numberMatch[1] : fullMatch;
     let sectionTitle = numberMatch && numberMatch[2] ? numberMatch[2].trim() : fullMatch;
+    
+    // Clean up tabs and extra whitespace
+    sectionTitle = sectionTitle.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // Remove trailing numbers
     sectionTitle = sectionTitle.replace(/\d+\.\d+(?:\.\d+)*\s*$/g, '').trim();
     const parts = sectionTitle.split(/\d+\.\d+(?:\.\d+)*\s*/);
     if (parts.length > 1) {
@@ -141,9 +149,51 @@ function splitByRegex(text, regex) {
     }
 
     sectionTitle = sectionTitle.replace(/[\d\.\s]+$/g, '').trim();
+    
+    // VALIDATION 1: Title must start with uppercase letter
+    if (sectionTitle.length > 0 && sectionTitle[0] !== sectionTitle[0].toUpperCase()) {
+      console.log(`[RAG] Skipping section ${sectionNumber} - title doesn't start with uppercase: "${sectionTitle}"`);
+      continue;
+    }
+    
+    // VALIDATION 2: Title must have minimum length and not be just punctuation
     if (sectionTitle.length < 3 || /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
       console.log(`[RAG] Skipping section ${sectionNumber} - invalid title: "${sectionTitle}"`);
       continue;
+    }
+    
+    // VALIDATION 3: Check if title looks incomplete (ends with preposition or conjunction)
+    const incompleteTitlePattern = /\b(in|on|at|to|for|of|and|or|but|with|from|by|the|a|an|different|various|several|many|some|other)\s*$/i;
+    if (incompleteTitlePattern.test(sectionTitle)) {
+      console.log(`[RAG] Title appears incomplete: "${sectionTitle}", attempting to find continuation...`);
+      
+      // Find the line in the original text and check next line
+      const matchLineIndex = text.substring(0, match.index).split('\n').length - 1;
+      if (matchLineIndex + 1 < lines.length) {
+        const nextLine = lines[matchLineIndex + 1].trim();
+        
+        // If next line starts with uppercase and is not a section number, it's likely a continuation
+        if (nextLine.length > 0 && 
+            nextLine[0] === nextLine[0].toUpperCase() && 
+            !nextLine.match(/^\d+\.\d+/)) {
+          
+          // Extract the first word or phrase from next line (likely the rest of the title)
+          // Look for the first complete word (up to punctuation or lowercase word)
+          const continuationMatch = nextLine.match(/^([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)/);
+          if (continuationMatch) {
+            const continuation = continuationMatch[1].trim();
+            sectionTitle = `${sectionTitle} ${continuation}`.trim();
+            console.log(`[RAG] Extended title to: "${sectionTitle}"`);
+          } else {
+            // Fallback: take first word only
+            const firstWord = nextLine.split(/\s+/)[0];
+            if (firstWord && firstWord[0] === firstWord[0].toUpperCase()) {
+              sectionTitle = `${sectionTitle} ${firstWord}`.trim();
+              console.log(`[RAG] Extended title to: "${sectionTitle}"`);
+            }
+          }
+        }
+      }
     }
 
     if (seenSectionNumbers.has(sectionNumber)) {

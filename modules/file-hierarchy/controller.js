@@ -43,6 +43,23 @@ const getStandardsBySyllabus = async (req, res) => {
   }
 };
 
+// NEW: Get all standards across all syllabuses
+const getAllStandards = async (req, res) => {
+  try {
+    const standards = await service.getAllStandards();
+    res.status(200).json({
+      success: true,
+      data: standards,
+      message: 'Standards retrieved successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ============ SUBJECTS ============
 const getSubjectsByStandard = async (req, res) => {
   try {
@@ -67,10 +84,27 @@ const getSubjectsByStandard = async (req, res) => {
   }
 };
 
+// NEW: Get all subjects across all standards
+const getAllSubjects = async (req, res) => {
+  try {
+    const subjects = await service.getAllSubjects();
+    res.status(200).json({
+      success: true,
+      data: subjects,
+      message: 'Subjects retrieved successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ============ CHAPTERS ============
 const getChaptersBySubject = async (req, res) => {
   try {
-    const { subjectId, standardId, syllabusId } = req.query;
+    const { subjectId, standardId, syllabusId, term } = req.query;
     
     if (!subjectId || !standardId || !syllabusId) {
       return res.status(400).json({
@@ -79,9 +113,9 @@ const getChaptersBySubject = async (req, res) => {
       });
     }
 
-    console.log(`📚 Fetching chapters for: Syllabus=${syllabusId}, Standard=${standardId}, Subject=${subjectId}`);
+    console.log(`📚 Fetching chapters for: Syllabus=${syllabusId}, Standard=${standardId}, Subject=${subjectId}, Term=${term || 'all'}`);
     
-    const chapters = await service.getChaptersBySubject(subjectId, standardId, syllabusId);
+    const chapters = await service.getChaptersBySubject(subjectId, standardId, syllabusId, term);
     
     res.status(200).json({
       success: true,
@@ -192,7 +226,9 @@ const getBookFilesByChapter = async (req, res) => {
 module.exports = {
   getAllSyllabi,
   getStandardsBySyllabus,
+  getAllStandards,
   getSubjectsByStandard,
+  getAllSubjects,
   getChaptersBySubject,
   createChapterWithFile,
   getBookFileById,
