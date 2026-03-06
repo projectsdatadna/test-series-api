@@ -9,9 +9,11 @@ const router = express.Router();
 router.get('/syllabi', controller.getAllSyllabi);
 
 // Standards routes
+router.get('/all-standards', controller.getAllStandards); // NEW: Get all standards
 router.get('/standards/:syllabusId', controller.getStandardsBySyllabus);
 
 // Subjects routes
+router.get('/all-subjects', controller.getAllSubjects); // NEW: Get all subjects
 router.get('/subjects/:standardId', controller.getSubjectsByStandard);
 
 // Chapters routes - requires syllabusId, standardId, subjectId as query params

@@ -36,6 +36,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     const {
       chapterId,
       documentId,
+      chapterName,
       syllabusId,
       standardId,
       subjectId,
@@ -44,8 +45,23 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       pageRanges,
       splitPattern = 'regex_based',
       sectionTitles,
-      isTNStateBoard = false
+      isTNStateBoard = false,
+      term,
+      unitSectionTitles
     } = metadata;
+
+    // Convert term format from "Term I" to "TERM_1" for database storage
+    const convertTermFormat = (termStr) => {
+      if (!termStr) return null;
+      const termMap = {
+        'Term I': 'TERM_1',
+        'Term II': 'TERM_2',
+        'Term III': 'TERM_3'
+      };
+      return termMap[termStr] || termStr;
+    };
+
+    const dbTerm = convertTermFormat(term);
 
     console.log('[RAG] processPDFToSections - START with metadata:', {
       chapterId,
@@ -56,7 +72,8 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       division,
       bookType,
       splitPattern,
-      isTNStateBoard
+      isTNStateBoard,
+      term
     });
 
     if (!chapterId) {
@@ -73,37 +90,106 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     // Check if this is TN State Board book - use specialized splitting
     if (isTNStateBoard) {
       console.log('[RAG] processPDFToSections - Detected TN State Board book');
-      const { splitByUnitsAndChapters } = require('./tnBoardSplitter');
+      if (term) {
+        console.log(`[RAG] processPDFToSections - Processing ${term}`);
+      }
+      const { splitByUnits, splitBySections } = require('./tnBoardSplitter');
       
-      // First split by units, then by content types within each unit
-      const units = splitByUnitsAndChapters(text);
+      // Step 1: Split by units
+      let units = splitByUnits(text);
       console.log(`[RAG] TN Board splitter returned ${units.length} units`);
       
-      // Create chapters for each unit FIRST
+      // If unitSectionTitles provided, ensure we have units for all provided titles
+      if (unitSectionTitles && Array.isArray(unitSectionTitles) && unitSectionTitles.length > 0) {
+        console.log(`[RAG] Custom unit section titles provided for ${unitSectionTitles.length} units`);
+        
+        // Check if we need to create additional units
+        const maxProvidedUnit = Math.max(...unitSectionTitles.map(u => u.unitNumber));
+        const maxDetectedUnit = units.length > 0 ? Math.max(...units.map(u => u.unitNumber)) : 0;
+        
+        if (maxProvidedUnit > maxDetectedUnit) {
+          console.log(`[RAG] Need to create ${maxProvidedUnit - maxDetectedUnit} additional units based on unitSectionTitles`);
+          
+          const lines = text.split('\n');
+          
+          // Find where the last detected unit starts in the original text
+          let lastUnitStartLine = 0;
+          if (units.length > 0) {
+            const lastUnit = units[units.length - 1];
+            // Find the start of the last unit's content
+            const textBeforeLastUnit = text.substring(0, text.indexOf(lastUnit.content));
+            lastUnitStartLine = textBeforeLastUnit.split('\n').length;
+          }
+          
+          // Get all content from the start of the last detected unit to the end
+          const contentFromLastUnit = lines.slice(lastUnitStartLine).join('\n');
+          
+          // Re-split this content to include the missing units
+          const totalUnitsInThisSection = (maxProvidedUnit - maxDetectedUnit) + 1; // +1 for the last detected unit
+          const linesInThisSection = lines.slice(lastUnitStartLine);
+          
+          // Remove the last detected unit from our units array (we'll re-add it with correct boundaries)
+          if (units.length > 0) {
+            units.pop();
+          }
+          
+          // Split the content equally among all units in this section
+          const chunkSize = Math.floor(linesInThisSection.length / totalUnitsInThisSection);
+          
+          for (let i = 0; i < totalUnitsInThisSection; i++) {
+            const unitNum = maxDetectedUnit + i;
+            const startLine = i * chunkSize;
+            const endLine = i === totalUnitsInThisSection - 1 ? linesInThisSection.length : (i + 1) * chunkSize;
+            
+            const unitContent = linesInThisSection.slice(startLine, endLine).join('\n').trim();
+            
+            units.push({
+              unitNumber: unitNum,
+              unitTitle: `Unit ${unitNum}`,
+              content: unitContent,
+              contentLength: unitContent.length
+            });
+            
+            console.log(`[RAG] Created/Updated Unit ${unitNum}: ${unitContent.length} characters`);
+          }
+          
+          // Sort units by unit number
+          units.sort((a, b) => a.unitNumber - b.unitNumber);
+        }
+      }
+      
+      if (units.length === 0) {
+        throw new Error('No units found in TN State Board book');
+      }
+      
+      // Step 2: Create chapters for each unit
       const hierarchyService = require('../file-hierarchy/service');
       const unitChapters = [];
       
       for (const unit of units) {
         try {
-          // Create a chapter for this unit with unit name and number
           const unitChapterName = `Unit ${unit.unitNumber}`;
           const unitDocumentId = documentId || chapterId;
+          
           const unitChapterData = await hierarchyService.createChapter(
             subjectId,
             unitChapterName,
             `${unitDocumentId}_unit_${unit.unitNumber}`,
             syllabusId,
             standardId,
-            null
+            null,
+            dbTerm
           );
+          
           unitChapters.push({
             unitNumber: unit.unitNumber,
             chapterId: unitChapterData.chapterId,
             chapterName: unitChapterName
           });
-          console.log(`[RAG] Created chapter for unit ${unit.unitNumber}: ${unitChapterData.chapterId} (${unitChapterName})`);
+          
+          console.log(`[RAG] Created chapter for Unit ${unit.unitNumber}: ${unitChapterData.chapterId}`);
         } catch (e) {
-          console.warn(`[RAG] Could not create chapter for unit ${unit.unitNumber}:`, e.message);
+          console.warn(`[RAG] Could not create chapter for Unit ${unit.unitNumber}:`, e.message);
           // Fallback: use generated ID
           unitChapters.push({
             unitNumber: unit.unitNumber,
@@ -113,51 +199,54 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
         }
       }
       
-      // Process each unit as a separate chapter
+      // Step 3: Process each unit - split sections and store
       const storedSections = [];
       
       for (const unit of units) {
-        // Find the chapter ID for this unit
         const unitChapter = unitChapters.find(uc => uc.unitNumber === unit.unitNumber);
-        const unitChapterId = unitChapter?.chapterId || `${chapterId}_unit_${unit.unitNumber}`;
+        const unitChapterId = unitChapter.chapterId;
         
-        console.log(`[RAG] Processing unit ${unit.unitNumber} with ${unit.sections.length} sections, chapterId: ${unitChapterId}`);
+        console.log(`[RAG] Processing Unit ${unit.unitNumber} with chapterId: ${unitChapterId}`);
         
-        // Convert unit sections to standard format
-        const unitSections = unit.sections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          sectionType: s.sectionType,
-          content: s.content,
-          unitNumber: s.unitNumber
-        }));
+        // Check if custom section titles are provided for this unit
+        const customTitles = unitSectionTitles?.find(u => u.unitNumber === unit.unitNumber);
         
-        console.log('[RAG] Unit sections converted:', unitSections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          sectionType: s.sectionType
-        })));
+        // Split unit content by sections
+        let unitSections;
+        if (customTitles && customTitles.sections && customTitles.sections.length > 0) {
+          console.log(`[RAG] Using custom section titles for Unit ${unit.unitNumber}:`, customTitles.sections);
+          // Use custom titles - pass them to the splitter
+          unitSections = splitBySections(unit.content, unit.unitNumber, unit.unitTitle, customTitles.sections, subjectId);
+        } else {
+          // Use automatic detection - pass subjectId for subject-specific logic
+          unitSections = splitBySections(unit.content, unit.unitNumber, unit.unitTitle, null, subjectId);
+        }
+        console.log(`[RAG] Unit ${unit.unitNumber} split into ${unitSections.length} sections`);
         
-        // Process sections to create chunks
+        // SPECIAL CASE: If only one section found, use chapter name as section title
+        if (unitSections.length === 1) {
+          console.log(`[RAG] Only one section found for Unit ${unit.unitNumber}, using chapter name as section title`);
+          unitSections[0].sectionTitle = unit.unitTitle;
+          console.log(`[RAG] Updated section title to: "${unit.unitTitle}"`);
+        }
+        
+        // Create chunks for all sections
         const { processSectionsToChunks } = require('./textSplitter');
         const allChunks = await processSectionsToChunks(unitSections);
-
-        console.log(`[RAG] Created ${allChunks.length} chunks from unit ${unit.unitNumber} sections`);
-
+        console.log(`[RAG] Created ${allChunks.length} chunks from Unit ${unit.unitNumber}`);
+        
         // Generate embeddings for all chunks
         const texts = allChunks.map(chunk => chunk.text);
         const embeddings = await generateEmbeddings(texts);
-
+        
         // Combine chunks with embeddings
         const chunksWithEmbeddings = allChunks.map((chunk, index) => ({
           ...chunk,
           embedding: embeddings[index]
         }));
-
-        // Group chunks by section and store each section
+        
+        // Group chunks by section
         const sectionMap = {};
-
-        // Group chunks by section number
         chunksWithEmbeddings.forEach(chunk => {
           if (!sectionMap[chunk.sectionNumber]) {
             sectionMap[chunk.sectionNumber] = {
@@ -169,25 +258,19 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           }
           sectionMap[chunk.sectionNumber].chunks.push(chunk);
         });
-
-        console.log('[RAG] Section map for unit:', Object.keys(sectionMap).map(key => ({
+        
+        console.log(`[RAG] Section map for Unit ${unit.unitNumber}:`, Object.keys(sectionMap).map(key => ({
           sectionNumber: sectionMap[key].sectionNumber,
           sectionTitle: sectionMap[key].sectionTitle,
-          sectionType: sectionMap[key].sectionType
+          sectionType: sectionMap[key].sectionType,
+          chunkCount: sectionMap[key].chunks.length
         })));
-
-        // Store each section with its chunks in parallel (not sequential)
+        
+        // Store each section in parallel
         const sectionStoragePromises = Object.entries(sectionMap).map(async ([sectionNumber, sectionData]) => {
           try {
-            console.log('[RAG] Storing section:', {
-              sectionNumber: sectionData.sectionNumber,
-              sectionTitle: sectionData.sectionTitle,
-              sectionType: sectionData.sectionType,
-              unitNumber: unit.unitNumber,
-              chapterId: unitChapterId,
-              chunkCount: sectionData.chunks.length
-            });
-
+            console.log(`[RAG] Storing section ${sectionNumber} in Unit ${unit.unitNumber}`);
+            
             const storedSection = await storeSectionWithEmbeddings({
               chapterId: unitChapterId,
               sectionNumber: sectionData.sectionNumber,
@@ -200,32 +283,20 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
               chunks: sectionData.chunks
             });
             
-            console.log(`[RAG] Stored section ${sectionNumber} in unit ${unit.unitNumber} with ${sectionData.chunks.length} chunks`);
+            console.log(`[RAG] Stored section ${sectionNumber} with ${sectionData.chunks.length} chunks`);
             return storedSection;
           } catch (sectionError) {
             console.warn(`[RAG] Warning: Could not store section ${sectionNumber}:`, sectionError.message);
             return null;
           }
         });
-
-        // Wait for all sections to be stored in parallel
+        
+        // Wait for all sections to be stored
         const storedSectionsForUnit = await Promise.all(sectionStoragePromises);
         storedSections.push(...storedSectionsForUnit.filter(s => s !== null));
       }
-
-      // Final verification
-      const totalStoredChunks = storedSections.reduce((sum, s) => sum + (s.totalChunks || 0), 0);
-      console.log(`[RAG] Successfully stored ${storedSections.length} sections with ${totalStoredChunks} total chunks`);
-      console.log('[RAG] processPDFToSections - Final stored sections:', storedSections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionTitle: s.sectionTitle,
-        sectionType: s.sectionType
-      })));
-
-      if (totalStoredChunks === 0) {
-        console.error('[RAG] ERROR: No chunks were stored! Content may have been lost.');
-      }
-
+      
+      console.log(`[RAG] Successfully stored ${storedSections.length} sections from ${units.length} units`);
       return storedSections;
     } else {
       // Check if this is 9th or 10th English - use specialized splitting
@@ -309,9 +380,33 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
 
     console.log('[RAG] processPDFToSections - Sections after splitting:', sections.map(s => ({
       sectionNumber: s.sectionNumber,
-      sectionTitle: s.sectionTitle,
+      sectionTitle: s.title || s.sectionTitle,
       sectionType: s.sectionType
     })));
+
+    // SPECIAL CASE: If only one section found, use chapter name as section title
+    if (sections.length === 1 && chapterName) {
+      console.log(`[RAG] Only one section found (${sections.length}), chapterName available: "${chapterName}"`);
+      console.log(`[RAG] Current section title: "${sections[0].title || sections[0].sectionTitle}"`);
+      
+      // Handle both 'title' and 'sectionTitle' properties
+      if (sections[0].title !== undefined) {
+        sections[0].title = chapterName;
+      }
+      if (sections[0].sectionTitle !== undefined) {
+        sections[0].sectionTitle = chapterName;
+      }
+      // Set both to ensure it works regardless of property name
+      if (!sections[0].title && !sections[0].sectionTitle) {
+        sections[0].title = chapterName;
+        sections[0].sectionTitle = chapterName;
+      }
+      
+      console.log(`[RAG] Updated section title to: "${chapterName}"`);
+      console.log(`[RAG] Verification - section.title: "${sections[0].title}", section.sectionTitle: "${sections[0].sectionTitle}"`);
+    } else if (sections.length === 1) {
+      console.log(`[RAG] Only one section found but chapterName not available. Current title: "${sections[0].title || sections[0].sectionTitle}"`);
+    }
 
     // Verify section content
     const totalSectionLength = sections.reduce((sum, s) => sum + s.content.length, 0);

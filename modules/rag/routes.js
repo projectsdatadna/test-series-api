@@ -1,5 +1,7 @@
 const express = require('express');
 const {
+  batchGeneratePresignedUrls,
+  batchProcessFromS3,
   generatePresignedUrlForRAG,
   processRAGFileFromS3,
   retrieveContextAPI,
@@ -10,6 +12,8 @@ const {
 const chatRoutes = require('./chatRoutes');
 const router = express.Router();
 
+router.post('/batch-generate-upload-urls', batchGeneratePresignedUrls);
+router.post('/batch-process-from-s3', batchProcessFromS3);
 router.post('/generate-upload-url', generatePresignedUrlForRAG);
 router.post('/process-from-s3', processRAGFileFromS3);
 router.post('/split-by-page-ranges', splitByPageRangesAPI);
