@@ -1,6 +1,8 @@
 const AWS = require('aws-sdk');
 const { retrieveContext, retrieveContextBatch } = require('./retriever');
 const { getVectorData } = require('./dynamodbStore');
+const { createJob, getJobStatus } = require('./jobQueue');
+const { pollAndProcessJobs } = require('./backgroundWorker');
 
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION || 'ap-south-1'
@@ -1170,6 +1172,262 @@ async function batchProcessFromS3(req, res) {
   }
 }
 
+/**
+ * Queue a single file for async processing
+ * Returns immediately with jobId, processing happens in background
+ */
+async function queueProcessFromS3(req, res) {
+  try {
+    const {
+      fileKey,
+      documentId,
+      fileName,
+      syllabusId,
+      standardId,
+      subjectId,
+      chapterName,
+      division,
+      bookType,
+      pageRanges,
+      splitPattern,
+      sectionTitles,
+      term,
+      unitSectionTitles
+    } = req.body;
+
+    // Validate required fields
+    if (!fileKey || !documentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'fileKey and documentId are required'
+      });
+    }
+
+    // Map bookType to division if provided
+    let finalDivision = division;
+    if (bookType && !division) {
+      const bookTypeMap = {
+        'main': 'Chapters',
+        'supplementary': 'Poems',
+        'workbook': 'Workbook'
+      };
+      finalDivision = bookTypeMap[bookType.toLowerCase()];
+      
+      if (!finalDivision) {
+        return res.status(400).json({
+          success: false,
+          message: `bookType must be one of: main, supplementary, workbook`,
+        });
+      }
+    }
+
+    // Detect TN State Board books
+    const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
+
+    // Validate term for TN State Board books
+    if (isTNStateBoard && term) {
+      const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
+      const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
+      const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
+      
+      if (!allValidTerms.includes(term)) {
+        return res.status(400).json({
+          success: false,
+          message: `term must be one of: ${validTermsFrontend.join(', ')} or ${validTermsDatabase.join(', ')}`
+        });
+      }
+    }
+
+    // Validate division for 9th and 10th English
+    const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
+                           (subjectId === 'SUB_ENG' || subjectId === 'English');
+    if (isEnglish9or10 && !finalDivision) {
+      return res.status(400).json({
+        success: false,
+        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)',
+      });
+    }
+
+    // Validate division value if provided
+    const validDivisions = ['Chapters', 'Poems', 'Workbook'];
+    if (finalDivision && !validDivisions.includes(finalDivision)) {
+      return res.status(400).json({
+        success: false,
+        message: `division must be one of: ${validDivisions.join(', ')}`,
+      });
+    }
+
+    // Validate splitPattern if provided
+    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+    if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
+      return res.status(400).json({
+        success: false,
+        message: `splitPattern must be one of: ${validSplitPatterns.join(', ')}`
+      });
+    }
+
+    // Verify file exists in S3
+    try {
+      await s3.headObject({
+        Bucket: S3_BUCKET,
+        Key: fileKey
+      }).promise();
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: `File not found in S3: ${fileKey}`
+      });
+    }
+
+    // Create job in queue
+    const jobData = {
+      documentId,
+      fileKey,
+      fileName: fileName || 'unknown',
+      syllabusId: syllabusId || null,
+      standardId: standardId || null,
+      subjectId: subjectId || null,
+      chapterName: chapterName || null,
+      fileSize: 0, // Will be updated by background worker
+      term: term || null,
+      bookType: bookType || null,
+      splitPattern: splitPattern || 'regex_based',
+      sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
+      unitSectionTitles: unitSectionTitles || null,
+      isTNStateBoard: isTNStateBoard
+    };
+
+    const { jobId, status } = await createJob(jobData);
+
+    console.log(`[RAG] File queued for processing: ${fileName} (jobId: ${jobId})`);
+
+    return res.status(202).json({
+      success: true,
+      message: 'File queued for processing',
+      data: {
+        jobId,
+        documentId,
+        status
+      }
+    });
+
+  } catch (error) {
+    console.error('[RAG] Error in queueProcessFromS3:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Get job status
+ */
+async function getJobStatusAPI(req, res) {
+  try {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: 'jobId is required'
+      });
+    }
+
+    const jobStatus = await getJobStatus(jobId);
+
+    return res.status(200).json({
+      success: true,
+      data: jobStatus
+    });
+
+  } catch (error) {
+    if (error.message.includes('Job not found')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
+    console.error('[RAG] Error in getJobStatusAPI:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Manually trigger background worker to process queued jobs
+ * Useful for testing or manual job processing
+ */
+async function triggerBackgroundWorker(req, res) {
+  try {
+    const { maxJobs = 5 } = req.body;
+
+    if (maxJobs < 1 || maxJobs > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'maxJobs must be between 1 and 50'
+      });
+    }
+
+    console.log(`[RAG] Triggering background worker to process up to ${maxJobs} jobs`);
+
+    const result = await pollAndProcessJobs(maxJobs);
+
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('[RAG] Error in triggerBackgroundWorker:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
+/**
+ * Get job details (more detailed than status)
+ */
+async function getJobDetails(req, res) {
+  try {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: 'jobId is required'
+      });
+    }
+
+    const { getJobForProcessing } = require('./jobQueue');
+    const jobDetails = await getJobForProcessing(jobId);
+
+    return res.status(200).json({
+      success: true,
+      data: jobDetails
+    });
+
+  } catch (error) {
+    if (error.message.includes('Job not found')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    console.error('[RAG] Error in getJobDetails:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+}
+
 module.exports = {
   batchGeneratePresignedUrls,
   batchProcessFromS3,
@@ -1178,5 +1436,9 @@ module.exports = {
   retrieveContextAPI,
   retrieveContextBatchAPI,
   getDocumentVectors,
-  splitByPageRangesAPI
+  splitByPageRangesAPI,
+  queueProcessFromS3,
+  getJobStatusAPI,
+  triggerBackgroundWorker,
+  getJobDetails
 };

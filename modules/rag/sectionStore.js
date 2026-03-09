@@ -1,5 +1,5 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const ragConfig = require('./config');
 
@@ -95,12 +95,12 @@ async function storeSectionWithEmbeddings(sectionData) {
     const storedItems = [];
     let successCount = 0;
 
-    // Store each batch as a separate item
+    // Prepare all items for batch write
+    const itemsToWrite = [];
     for (let batchIndex = 0; batchIndex < chunkBatches.length; batchIndex++) {
       const batch = chunkBatches[batchIndex];
       const sectionId = uuidv4();
 
-      // Create sub-section number for batches (e.g., 2.1_batch_1, 2.1_batch_2)
       const subSectionNumber = chunkBatches.length > 1
         ? `${sectionNumber}_batch_${batchIndex + 1}`
         : sectionNumber;
@@ -125,58 +125,44 @@ async function storeSectionWithEmbeddings(sectionData) {
         updatedAt: timestamp
       };
 
-      console.log(`[RAG] storeSectionWithEmbeddings - Batch ${batchIndex + 1}/${chunkBatches.length} item:`, {
-        sectionNumber: item.sectionNumber,
-        sectionType: item.sectionType,
-        type: item.type,
-        chunkCount: batch.length
-      });
+      itemsToWrite.push(item);
+    }
+
+    // Batch write all items (DynamoDB BatchWriteItem supports up to 25 items per request)
+    const BATCH_SIZE = 25;
+    for (let i = 0; i < itemsToWrite.length; i += BATCH_SIZE) {
+      const batch = itemsToWrite.slice(i, i + BATCH_SIZE);
+      const requestItems = batch.map(item => ({
+        PutRequest: {
+          Item: item
+        }
+      }));
+
+      console.log(`[RAG] storeSectionWithEmbeddings - Batch writing ${batch.length} items (batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(itemsToWrite.length / BATCH_SIZE)})`);
 
       try {
-        await docClient.send(new PutCommand({
-          TableName: SECTIONS_TABLE,
-          Item: item
+        await docClient.send(new BatchWriteCommand({
+          RequestItems: {
+            [SECTIONS_TABLE]: requestItems
+          }
         }));
-        storedItems.push(item);
-        successCount++;
-        console.log(`[RAG] storeSectionWithEmbeddings - Batch ${batchIndex + 1}/${chunkBatches.length} stored successfully (${batch.length} chunks), sectionType: ${sectionType}, type: ${type}`);
+        storedItems.push(...batch);
+        successCount += batch.length;
+        console.log(`[RAG] storeSectionWithEmbeddings - Batch ${Math.floor(i / BATCH_SIZE) + 1} written successfully (${batch.length} items)`);
       } catch (dbError) {
-        console.warn(`[RAG] Warning: Could not store batch ${batchIndex + 1} in DynamoDB:`, dbError.message);
-
-        // If batch still too large, try splitting further
-        if (dbError.message.includes('Item size has exceeded')) {
-          console.warn(`[RAG] storeSectionWithEmbeddings - Batch ${batchIndex + 1} still too large, attempting to split further...`);
-
-          // Try storing chunks individually or in smaller groups
-          const subBatchSize = Math.max(1, Math.floor(batch.length / 2));
-          for (let subIdx = 0; subIdx < batch.length; subIdx += subBatchSize) {
-            const subBatch = batch.slice(subIdx, subIdx + subBatchSize);
-            const subSectionId = uuidv4();
-
-            try {
-              await docClient.send(new PutCommand({
-                TableName: SECTIONS_TABLE,
-                Item: {
-                  sectionId: subSectionId,
-                  chapterId,
-                  sectionNumber: `${subSectionNumber}_sub_${Math.floor(subIdx / subBatchSize) + 1}`,
-                  sectionTitle: `${sectionTitle} (Sub-batch)`,
-                  syllabusId: syllabusId || null,
-                  standardId: standardId || null,
-                  subjectId: subjectId || null,
-                  sectionType: sectionType || null,
-                  type: type || null,
-                  chunks: subBatch,
-                  totalChunks: subBatch.length,
-                  createdAt: timestamp,
-                  updatedAt: timestamp
-                }
-              }));
-              successCount++;
-              console.log(`[RAG] storeSectionWithEmbeddings - Sub-batch stored successfully (${subBatch.length} chunks), sectionType: ${sectionType}, type: ${type}`);
-            } catch (subError) {
-              console.warn(`[RAG] storeSectionWithEmbeddings - Could not store sub-batch:`, subError.message);
-            }
+        console.warn(`[RAG] Warning: Batch write failed:`, dbError.message);
+        
+        // Fallback: write items individually if batch fails
+        for (const item of batch) {
+          try {
+            await docClient.send(new PutCommand({
+              TableName: SECTIONS_TABLE,
+              Item: item
+            }));
+            storedItems.push(item);
+            successCount++;
+          } catch (singleError) {
+            console.warn(`[RAG] Could not store item ${item.sectionId}:`, singleError.message);
           }
         }
       }

@@ -11,6 +11,67 @@ const dynamodb = new AWS.DynamoDB({
 });
 
 const SECTIONS_TABLE = process.env.SECTIONS_TABLE || 'SectionsTable';
+const JOBS_TABLE = process.env.JOBS_TABLE || 'RAGProcessingJobs';
+
+/**
+ * Create RAGProcessingJobs table if it doesn't exist
+ */
+async function initializeJobsTable() {
+  try {
+    // Check if table exists
+    const tables = await dynamodb.listTables().promise();
+
+    if (tables.TableNames.includes(JOBS_TABLE)) {
+      console.log('[RAG] RAGProcessingJobs table already exists');
+      return;
+    }
+
+    console.log('[RAG] Creating RAGProcessingJobs table...');
+
+    const params = {
+      TableName: JOBS_TABLE,
+      KeySchema: [
+        { AttributeName: 'jobId', KeyType: 'HASH' }
+      ],
+      AttributeDefinitions: [
+        { AttributeName: 'jobId', AttributeType: 'S' },
+        { AttributeName: 'status', AttributeType: 'S' },
+        { AttributeName: 'documentId', AttributeType: 'S' },
+        { AttributeName: 'createdAt', AttributeType: 'S' }
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'statusIndex',
+          KeySchema: [
+            { AttributeName: 'status', KeyType: 'HASH' },
+            { AttributeName: 'createdAt', KeyType: 'RANGE' }
+          ],
+          Projection: { ProjectionType: 'ALL' }
+        },
+        {
+          IndexName: 'documentIdIndex',
+          KeySchema: [{ AttributeName: 'documentId', KeyType: 'HASH' }],
+          Projection: { ProjectionType: 'ALL' }
+        }
+      ],
+      TimeToLiveSpecification: {
+        AttributeName: 'expiresAt',
+        Enabled: true
+      }
+    };
+
+    await dynamodb.createTable(params).promise();
+    console.log('[RAG] ✅ RAGProcessingJobs table created successfully');
+  } catch (error) {
+    if (error.code === 'ResourceInUseException') {
+      console.log('[RAG] RAGProcessingJobs table already exists');
+    } else {
+      console.warn('[RAG] Warning: Could not initialize RAGProcessingJobs table:', error.message);
+      console.warn('[RAG] Table will need to be created manually or via serverless deploy');
+    }
+  }
+}
 
 /**
  * Create SectionsTable if it doesn't exist
@@ -73,5 +134,6 @@ async function initializeSectionsTable() {
 }
 
 module.exports = {
-  initializeSectionsTable
+  initializeSectionsTable,
+  initializeJobsTable
 };
