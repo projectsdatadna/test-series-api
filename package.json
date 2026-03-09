@@ -42,7 +42,8 @@
     "pdf-parse": "^1.1.1",
     "serverless": "^3.40.0",
     "serverless-http": "^4.0.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
