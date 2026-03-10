@@ -322,47 +322,6 @@ resources:
           - AttributeName: documentId
             KeyType: HASH
 
-    SectionsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.SECTIONS_TABLE}
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: chapterId
-            AttributeType: S
-          - AttributeName: sectionId
-            AttributeType: S
-          - AttributeName: syllabusId
-            AttributeType: S
-          - AttributeName: standardId
-            AttributeType: S
-          - AttributeName: subjectId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: chapterId
-            KeyType: HASH
-          - AttributeName: sectionId
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: syllabus-index
-            KeySchema:
-              - AttributeName: syllabusId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: standard-index
-            KeySchema:
-              - AttributeName: standardId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: subject-index
-            KeySchema:
-              - AttributeName: subjectId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
 package:
   exclude:
     - .git/**
