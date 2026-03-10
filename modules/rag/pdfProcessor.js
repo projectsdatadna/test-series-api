@@ -332,6 +332,29 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           sectionTitle: s.sectionTitle,
           sectionType: s.sectionType
         })));
+      } else if (subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी') {
+        // Use Hindi-specific splitting for NCERT Hindi books
+        const { splitHindiBook, splitHindiBookByHeadings, splitHindiBookWithTitles } = require('./hindiSplitter');
+        console.log(`[RAG] Using Hindi-specific splitting for ${standardId} ${subjectId}`);
+        
+        // Use heading-based splitting (stops after पाठ से) for NCERT Hindi books
+        if (syllabusId && syllabusId.toUpperCase().includes('NCERT')) {
+          console.log(`[RAG] Detected NCERT Hindi book, using heading-based splitting`);
+          sections = splitHindiBookByHeadings(text);
+        } else if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
+          console.log(`[RAG] Using custom section titles for Hindi book: ${sectionTitles.length} sections`);
+          sections = splitHindiBookWithTitles(text, sectionTitles);
+        } else {
+          console.log(`[RAG] Using automatic Hindi book splitting`);
+          sections = splitHindiBook(text);
+        }
+        
+        console.log('[RAG] Hindi splitter returned sections:', sections.map(s => ({
+          sectionNumber: s.sectionNumber,
+          sectionTitle: s.sectionTitle,
+          sectionType: s.sectionType,
+          wordCount: s.metadata?.wordCount
+        })));
       } else if (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) {
         // Use page-based splitting if pageRanges provided (takes precedence)
         if (splitPattern && splitPattern !== 'regex_based') {

@@ -323,7 +323,7 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
     for (const item of allItems) {
       // Extract base section number by removing batch/sub identifiers
       // Examples: "1_batch_1" -> "1", "1_sub_1" -> "1", "2.1_batch_2" -> "2.1"
-      const baseSectionNumber = item.sectionNumber
+      const baseSectionNumber = String(item.sectionNumber)
         .split('_batch_')[0]
         .split('_sub_')[0]
         .split('_split_')[0];
