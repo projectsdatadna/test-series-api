@@ -30,19 +30,30 @@ async function generateAdaptiveContentFromSection(req, res) {
 
     // Extract parameters from request body
     const {
-      sectionId,
-      sectionNumber,
-      sectionTitle,
+      sectionIds,
+      sectionNumbers,
+      sectionTitles,
       chunks,
       contentType,
       contentTypeId,
       contentDepth,
       visualStyle,
-      outputLanguage
+      outputLanguage,
+      difficulty,
+      learningStyle,
+      maxTokens,
+      topic,
+      documentId,
+      userId
     } = req.body;
 
+    // Support both old single-section format and new multi-section format
+    const finalSectionIds = sectionIds || (req.body.sectionId ? [req.body.sectionId] : null);
+    const finalSectionNumbers = sectionNumbers || (req.body.sectionNumber ? [req.body.sectionNumber] : null);
+    const finalSectionTitles = sectionTitles || (req.body.sectionTitle ? [req.body.sectionTitle] : null);
+
     // Validate required fields
-    const requiredFields = ['sectionId', 'sectionNumber', 'sectionTitle', 'chunks', 'contentType'];
+    const requiredFields = ['chunks', 'contentType'];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
     if (missingFields.length > 0) {
@@ -64,9 +75,10 @@ async function generateAdaptiveContentFromSection(req, res) {
     }
 
     // Set defaults for optional parameters
-    const depth = contentDepth || 'intermediate';
-    const style = visualStyle || 'academic';
+    const depth = contentDepth || difficulty || 'intermediate';
+    const style = visualStyle || learningStyle || 'academic';
     const language = outputLanguage || 'english';
+    const maxTokensValue = maxTokens || 2048;
 
     // Combine all chunk texts for context
     const combinedChunkText = chunks
@@ -75,8 +87,8 @@ async function generateAdaptiveContentFromSection(req, res) {
 
     // Get dynamic prompt based on content type
     const prompt = getPrompt(contentTypeId, {
-      sectionNumber,
-      topicName: sectionTitle,
+      sectionNumber: finalSectionNumbers?.[0] || req.body.sectionNumber,
+      topicName: finalSectionTitles?.[0] || req.body.sectionTitle,
       contentDepth: depth,
       visualStyle: style,
       outputLanguage: language,
@@ -94,7 +106,7 @@ async function generateAdaptiveContentFromSection(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
-        max_tokens: 2048,
+        max_tokens: maxTokensValue,
         messages: [
           {
             role: 'user',
@@ -143,7 +155,7 @@ async function generateAdaptiveContentFromSection(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
-        max_tokens: 2048,
+        max_tokens: maxTokensValue,
         messages: [
           {
             role: 'user',
@@ -227,9 +239,15 @@ async function generateAdaptiveContentFromSection(req, res) {
             return res.status(200).json({
               success: true,
               images: imageRes.images,
-              sectionId,
-              sectionNumber,
-              sectionTitle,
+              sectionIds: finalSectionIds,
+              sectionNumbers: finalSectionNumbers,
+              sectionTitles: finalSectionTitles,
+              topic,
+              documentId,
+              userId,
+              contentTypeId,
+              difficulty: depth,
+              learningStyle: style,
               tokenUsage: {
                 inputTokens: totalInputTokens,
                 outputTokens: totalOutputTokens,
@@ -242,9 +260,15 @@ async function generateAdaptiveContentFromSection(req, res) {
           return res.status(200).json({
             success: true,
             conversion: imageRes,
-            sectionId,
-            sectionNumber,
-            sectionTitle,
+            sectionIds: finalSectionIds,
+            sectionNumbers: finalSectionNumbers,
+            sectionTitles: finalSectionTitles,
+            topic,
+            documentId,
+            userId,
+            contentTypeId,
+            difficulty: depth,
+            learningStyle: style,
             tokenUsage: {
               inputTokens: totalInputTokens,
               outputTokens: totalOutputTokens,

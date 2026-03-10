@@ -171,10 +171,29 @@ Extract ALL headers, sections, tables, and images separately. Return ONLY valid 
 // Generate content from analyzed document
 async function generateContent(req, res) {
   try {
-    const { userId, category, selectedIndex } = req.body;
+    const {
+      userId,
+      category,
+      selectedIndex,
+      sectionIds,
+      sectionNumbers,
+      sectionTitles,
+      chunks,
+      contentTypeId,
+      difficulty,
+      learningStyle,
+      maxTokens,
+      topic,
+      documentId
+    } = req.body;
 
-    if (!selectedIndex || !category) {
-      return res.status(400).json({ success: false, message: 'selectedIndex and category required' });
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'category is required' });
+    }
+
+    // Support both old format (selectedIndex) and new format (chunks)
+    if (!selectedIndex && !chunks) {
+      return res.status(400).json({ success: false, message: 'selectedIndex or chunks is required' });
     }
 
     const prompts = {
@@ -183,14 +202,24 @@ async function generateContent(req, res) {
       'true-false': `Generate 8 true/false questions from ONLY this content. Return ONLY clean HTML.`
     };
 
-    const contentBlock = `
+    let contentBlock;
+
+    // Handle new format with chunks
+    if (chunks && Array.isArray(chunks)) {
+      contentBlock = chunks
+        .map((chunk, idx) => `Chunk ${idx + 1}:\n${chunk.text}`)
+        .join('\n\n---\n\n');
+    } else {
+      // Handle old format with selectedIndex
+      contentBlock = `
 Type: ${selectedIndex.type}
 Page: ${selectedIndex.page || 'N/A'}
 Content: ${selectedIndex.content}`;
+    }
 
     const message = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
-      max_tokens: 4000,
+      max_tokens: maxTokens || 4000,
       messages: [{ 
         role: 'user', 
         content: `${prompts[category]}
@@ -208,7 +237,16 @@ Generate exactly 8 questions from ONLY this content. Return ONLY HTML.`
       data: { 
         html, 
         category,
-        totalQuestions: 8
+        totalQuestions: 8,
+        sectionIds,
+        sectionNumbers,
+        sectionTitles,
+        topic,
+        documentId,
+        userId,
+        contentTypeId,
+        difficulty: difficulty || 'intermediate',
+        learningStyle: learningStyle || 'visual'
       }
     });
 
@@ -413,10 +451,29 @@ PARAGRAPH 2: [second paragraph here]`
 // Advanced content generation with enriched paragraphs
 async function generateContentAdvanced(req, res) {
   try {
-    const { category, selectedIndex } = req.body;
+    const {
+      category,
+      selectedIndex,
+      sectionIds,
+      sectionNumbers,
+      sectionTitles,
+      chunks,
+      contentTypeId,
+      difficulty,
+      learningStyle,
+      maxTokens,
+      topic,
+      documentId,
+      userId
+    } = req.body;
 
-    if (!selectedIndex || !category) {
-      return res.status(400).json({ success: false, message: 'selectedIndex and category required' });
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'category is required' });
+    }
+
+    // Support both old format (selectedIndex) and new format (chunks)
+    if (!selectedIndex && !chunks) {
+      return res.status(400).json({ success: false, message: 'selectedIndex or chunks is required' });
     }
 
     const prompts = {
@@ -429,15 +486,25 @@ Return ONLY complete HTML.`,
       'true-false': `Generate 8 true/false questions from ONLY these 2 detailed paragraphs. Include brief explanation. Return ONLY clean HTML.`
     };
 
-    const contentBlock = `
+    let contentBlock;
+
+    // Handle new format with chunks
+    if (chunks && Array.isArray(chunks)) {
+      contentBlock = chunks
+        .map((chunk, idx) => `Chunk ${idx + 1}:\n${chunk.text}`)
+        .join('\n\n---\n\n');
+    } else {
+      // Handle old format with selectedIndex
+      contentBlock = `
 Type: ${selectedIndex.type}
 Page: ${selectedIndex.page || 'N/A'}
 Paragraph 1: ${selectedIndex.paragraph1}
 Paragraph 2: ${selectedIndex.paragraph2}`;
+    }
 
     const message = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
-      max_tokens: 4000,
+      max_tokens: maxTokens || 4000,
       messages: [{ 
         role: 'user', 
         content: `${prompts[category]}
@@ -457,7 +524,16 @@ Generate exactly 8 questions. Return ONLY styled HTML with proper classes.`
         html, 
         category,
         totalQuestions: 8,
-        sourceContent: selectedIndex.fullContent
+        sourceContent: selectedIndex?.fullContent || null,
+        sectionIds,
+        sectionNumbers,
+        sectionTitles,
+        topic,
+        documentId,
+        userId,
+        contentTypeId,
+        difficulty: difficulty || 'intermediate',
+        learningStyle: learningStyle || 'visual'
       }
     });
 

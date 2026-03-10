@@ -77,8 +77,11 @@ async function storeSectionWithEmbeddings(sectionData) {
     // DynamoDB limit: 400KB per item
     // Safe margin: use 300KB per item
     // Average embedding size: ~12KB (3072 floats * 4 bytes)
+    // Metadata overhead: ~500 bytes per chunk
     const avgChunkSize = totalChunkContent > 0 ? totalChunkContent / processedChunks.length : 1000;
-    const avgItemSize = avgChunkSize + 12000; // text + embedding + metadata overhead
+    const embeddingSize = 12000; // 3072 floats * 4 bytes
+    const metadataOverhead = 500; // per chunk
+    const avgItemSize = avgChunkSize + embeddingSize + metadataOverhead;
     const CHUNKS_PER_BATCH = Math.max(1, Math.floor(300000 / avgItemSize));
 
     console.log(`[RAG] storeSectionWithEmbeddings - Avg chunk size: ${Math.round(avgItemSize)} bytes, Optimal batch size: ${CHUNKS_PER_BATCH} chunks per batch`);
@@ -132,38 +135,55 @@ async function storeSectionWithEmbeddings(sectionData) {
     const BATCH_SIZE = 25;
     for (let i = 0; i < itemsToWrite.length; i += BATCH_SIZE) {
       const batch = itemsToWrite.slice(i, i + BATCH_SIZE);
-      const requestItems = batch.map(item => ({
-        PutRequest: {
-          Item: item
-        }
-      }));
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(itemsToWrite.length / BATCH_SIZE);
 
-      console.log(`[RAG] storeSectionWithEmbeddings - Batch writing ${batch.length} items (batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(itemsToWrite.length / BATCH_SIZE)})`);
+      console.log(`[RAG] storeSectionWithEmbeddings - Batch writing ${batch.length} items (batch ${batchNumber}/${totalBatches})`);
 
       try {
-        await docClient.send(new BatchWriteCommand({
+        const requestItems = batch.map(item => ({
+          PutRequest: {
+            Item: item
+          }
+        }));
+
+        const response = await docClient.send(new BatchWriteCommand({
           RequestItems: {
             [SECTIONS_TABLE]: requestItems
           }
         }));
-        storedItems.push(...batch);
-        successCount += batch.length;
-        console.log(`[RAG] storeSectionWithEmbeddings - Batch ${Math.floor(i / BATCH_SIZE) + 1} written successfully (${batch.length} items)`);
+
+        // Check for unprocessed items
+        if (response.UnprocessedItems && response.UnprocessedItems[SECTIONS_TABLE] && response.UnprocessedItems[SECTIONS_TABLE].length > 0) {
+          console.warn(`[RAG] Warning: ${response.UnprocessedItems[SECTIONS_TABLE].length} items were not processed in batch. Retrying individually...`);
+
+          const processedItemIds = new Set(batch.map(item => item.sectionId));
+
+          // Retry unprocessed items individually
+          for (const unprocessedItem of response.UnprocessedItems[SECTIONS_TABLE]) {
+            await writeItemWithSplitFallback(unprocessedItem.PutRequest.Item, storedItems, successCount, processedItemIds);
+          }
+
+          // Add successfully processed items (excluding unprocessed ones)
+          for (const item of batch) {
+            if (processedItemIds.has(item.sectionId)) {
+              storedItems.push(item);
+              successCount++;
+            }
+          }
+        } else {
+          // All items were processed successfully
+          storedItems.push(...batch);
+          successCount += batch.length;
+        }
+
+        console.log(`[RAG] storeSectionWithEmbeddings - Batch ${batchNumber} written successfully (${batch.length} items)`);
       } catch (dbError) {
         console.warn(`[RAG] Warning: Batch write failed:`, dbError.message);
-        
+
         // Fallback: write items individually if batch fails
         for (const item of batch) {
-          try {
-            await docClient.send(new PutCommand({
-              TableName: SECTIONS_TABLE,
-              Item: item
-            }));
-            storedItems.push(item);
-            successCount++;
-          } catch (singleError) {
-            console.warn(`[RAG] Could not store item ${item.sectionId}:`, singleError.message);
-          }
+          await writeItemWithSplitFallback(item, storedItems, successCount);
         }
       }
     }
@@ -190,6 +210,63 @@ async function storeSectionWithEmbeddings(sectionData) {
   } catch (error) {
     console.error('[RAG] Error storing section with embeddings:', error.message);
     throw error;
+  }
+}
+
+/**
+ * Write item with fallback to splitting if size exceeded
+ */
+async function writeItemWithSplitFallback(item, storedItems, successCount, processedItemIds = null) {
+  try {
+    await docClient.send(new PutCommand({
+      TableName: SECTIONS_TABLE,
+      Item: item
+    }));
+    storedItems.push(item);
+    successCount++;
+    console.log(`[RAG] Successfully stored item ${item.sectionId}`);
+    if (processedItemIds) {
+      processedItemIds.delete(item.sectionId);
+    }
+  } catch (singleError) {
+    // If item size exceeded, split chunks and retry
+    if (singleError.message && singleError.message.includes('Item size has exceeded')) {
+      console.warn(`[RAG] Item ${item.sectionId} size exceeded. Splitting chunks and retrying...`);
+
+      // Split chunks in half
+      const originalChunks = item.chunks;
+      const midpoint = Math.ceil(originalChunks.length / 2);
+
+      const chunk1 = originalChunks.slice(0, midpoint);
+      const chunk2 = originalChunks.slice(midpoint);
+
+      console.log(`[RAG] Splitting ${originalChunks.length} chunks into ${chunk1.length} and ${chunk2.length}`);
+
+      // Create two new items with split chunks
+      const item1 = {
+        ...item,
+        sectionId: uuidv4(),
+        sectionNumber: `${item.sectionNumber}_split_1`,
+        sectionTitle: `${item.sectionTitle} (Split 1)`,
+        chunks: chunk1,
+        totalChunks: chunk1.length
+      };
+
+      const item2 = {
+        ...item,
+        sectionId: uuidv4(),
+        sectionNumber: `${item.sectionNumber}_split_2`,
+        sectionTitle: `${item.sectionTitle} (Split 2)`,
+        chunks: chunk2,
+        totalChunks: chunk2.length
+      };
+
+      // Recursively write split items
+      await writeItemWithSplitFallback(item1, storedItems, successCount, processedItemIds);
+      await writeItemWithSplitFallback(item2, storedItems, successCount, processedItemIds);
+    } else {
+      console.warn(`[RAG] Could not store item ${item.sectionId}:`, singleError.message);
+    }
   }
 }
 
@@ -224,7 +301,7 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
 
       const result = await docClient.send(new QueryCommand(params));
       const items = result.Items || [];
-      
+
       console.log(`[RAG] Retrieved ${items.length} section items for chapter ${chapterId}`);
       allItems.push(...items);
       itemCount += items.length;
@@ -239,7 +316,7 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
     } while (lastEvaluatedKey);
 
     console.log(`[RAG] Total items retrieved: ${allItems.length} for chapter ${chapterId}`);
-    
+
     // Group batched sections by original section number
     const sectionMap = {};
 
@@ -248,7 +325,8 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
       // Examples: "1_batch_1" -> "1", "1_sub_1" -> "1", "2.1_batch_2" -> "2.1"
       const baseSectionNumber = item.sectionNumber
         .split('_batch_')[0]
-        .split('_sub_')[0];
+        .split('_sub_')[0]
+        .split('_split_')[0];
 
       console.log(`[RAG] Processing item - sectionNumber: ${item.sectionNumber}, baseSectionNumber: ${baseSectionNumber}, chunks: ${item.chunks?.length || 0}`);
 
@@ -259,7 +337,8 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
           sectionNumber: baseSectionNumber,
           sectionTitle: item.sectionTitle
             .replace(/ \(Part \d+\/\d+\)$/, '')
-            .replace(/ \(Sub-batch\)$/, ''),
+            .replace(/ \(Sub-batch\)$/, '')
+            .replace(/ \(Split [12]\)$/, ''),
           syllabusId: item.syllabusId,
           standardId: item.standardId,
           subjectId: item.subjectId,
@@ -273,15 +352,15 @@ async function getSectionsByChapter(chapterId, maxItems = 1000) {
       // Combine chunks from all batches/sub-batches
       const chunksToAdd = item.chunks || [];
       console.log(`[RAG] Adding ${chunksToAdd.length} chunks to section ${baseSectionNumber}. Current chunks: ${sectionMap[baseSectionNumber].chunks.length}`);
-      
+
       sectionMap[baseSectionNumber].chunks.push(...chunksToAdd);
-      
+
       console.log(`[RAG] After adding - section ${baseSectionNumber} now has ${sectionMap[baseSectionNumber].chunks.length} chunks`);
     }
 
     const combinedSections = Object.values(sectionMap);
     console.log(`[RAG] Combined ${allItems.length} items into ${combinedSections.length} sections`);
-    
+
     // Recalculate totalChunks based on actual combined chunks
     combinedSections.forEach(section => {
       section.totalChunks = section.chunks.length;
