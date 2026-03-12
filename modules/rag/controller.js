@@ -4,8 +4,10 @@ const { getVectorData } = require('./dynamodbStore');
 const { createJob, getJobStatus } = require('./jobQueue');
 const { pollAndProcessJobs } = require('./backgroundWorker');
 
+// Use Lambda execution role - no explicit credentials needed 
 const s3 = new AWS.S3({
-  region: process.env.AWS_REGION || 'ap-south-1'
+  region: process.env.AWS_REGION || 'ap-south-1',
+  signatureVersion: 'v4'
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'test-series-books';
