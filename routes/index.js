@@ -45,6 +45,12 @@ const bookUploadRoutes = require("../modules/book-upload/routes");
 const adaptiveContentLibraryRoutes = require("../modules/adaptive-content-library/routes");
 const ragRoutes = require('../modules/rag/routes');
 
+const schoolRoutes = require("../modules/school/routes");
+const teacherRoutes = require("../modules/teacher/teacherRoutes");
+const studentRoutes = require("../modules/student/studentRoutes");
+
+const remedial = require("../modules/remedial/remedialContent");
+
 /**
  * Register all routes with the Express app
  * @param {Express} app - Express application instance
@@ -102,6 +108,12 @@ function registerRoutes(app) {
   app.use('/book-upload', bookUploadRoutes); // Book upload with chapter creation
   app.use('/rag', ragRoutes); // RAG (Retrieval-Augmented Generation) routes - TEMPORARILY DISABLED
 
+  app.use('/school', schoolRoutes);
+  app.use('/teacher', teacherRoutes);
+  app.use('/student', studentRoutes);
+
+  app.use('/remedial', remedial);
+  
   // ============ ROOT-LEVEL ROUTES (Must come AFTER namespaced routes) ============
   // ⚠️ CRITICAL: These routes use generic patterns like /:id and must be registered last
   app.use('/', hierarchyRoutes); // Hierarchy linking routes use root paths
