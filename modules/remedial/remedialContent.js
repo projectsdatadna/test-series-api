@@ -5,6 +5,7 @@ const {
   PutCommand,
   QueryCommand,
 } = require('@aws-sdk/lib-dynamodb');
+const { UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -90,6 +91,90 @@ router.get('/history', async (req, res) => {
   } catch (error) {
     console.error('Error fetching content history:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch history' });
+  }
+});
+
+// PUT /remedial/update-question — Edit a specific question in saved content
+router.put('/update-question', async (req, res) => {
+  try {
+    const { contentId, questionId, updatedQuestion } = req.body;
+
+    if (!contentId || questionId === undefined || !updatedQuestion) {
+      return res.status(400).json({ success: false, error: 'contentId, questionId, updatedQuestion are required' });
+    }
+
+    // Fetch existing item first
+    const getResult = await ddb.send(new GetCommand({ TableName: TABLE, Key: { contentId } }));
+    if (!getResult.Item) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+
+    const contentData = getResult.Item.contentData;
+    const questions = contentData?.quiz;
+
+    if (!Array.isArray(questions)) {
+      return res.status(400).json({ success: false, error: 'No quiz questions found in this content' });
+    }
+
+    // Update the specific question by id
+    const updatedQuestions = questions.map(q =>
+      q.id === questionId ? { ...q, ...updatedQuestion } : q
+    );
+
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { contentId },
+      UpdateExpression: 'SET contentData.quiz = :q, updatedAt = :t',
+      ExpressionAttributeValues: {
+        ':q': updatedQuestions,
+        ':t': new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, message: 'Question updated successfully' });
+  } catch (error) {
+    console.error('Error updating question:', error);
+    res.status(500).json({ success: false, error: 'Failed to update question' });
+  }
+});
+
+// DELETE /remedial/delete-question — Delete a specific question
+router.delete('/delete-question', async (req, res) => {
+  try {
+    const { contentId, questionId } = req.body;
+
+    if (!contentId || questionId === undefined) {
+      return res.status(400).json({ success: false, error: 'contentId and questionId are required' });
+    }
+
+    const getResult = await ddb.send(new GetCommand({ TableName: TABLE, Key: { contentId } }));
+    if (!getResult.Item) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+
+    const contentData = getResult.Item.contentData;
+    const questions = contentData?.quiz;
+
+    if (!Array.isArray(questions)) {
+      return res.status(400).json({ success: false, error: 'No quiz questions found in this content' });
+    }
+
+    const filteredQuestions = questions.filter(q => q.id !== questionId);
+
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { contentId },
+      UpdateExpression: 'SET contentData.quiz = :q, updatedAt = :t',
+      ExpressionAttributeValues: {
+        ':q': filteredQuestions,
+        ':t': new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, message: 'Question deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting question:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete question' });
   }
 });
 
