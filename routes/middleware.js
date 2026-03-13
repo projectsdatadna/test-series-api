@@ -21,7 +21,8 @@ function errorHandler(err, req, res, next) {
     stack: err.stack,
     path: req.originalUrl,
     method: req.method,
-    status: err.status || 500
+    status: err.status || 500,
+    code: err.code
   });
   
   // Default error response
@@ -50,8 +51,31 @@ function errorHandler(err, req, res, next) {
     return res.status(404).json(errorResponse);
   }
   
+  // Handle AWS SDK errors
+  if (err.code === 'NotAuthorizedException') {
+    errorResponse.message = 'Invalid credentials';
+    return res.status(401).json(errorResponse);
+  }
+  
+  if (err.code === 'UserNotFoundException') {
+    errorResponse.message = 'User not found';
+    return res.status(404).json(errorResponse);
+  }
+  
+  if (err.code === 'InvalidParameterException') {
+    errorResponse.message = 'Invalid parameters provided';
+    return res.status(400).json(errorResponse);
+  }
+  
+  // Handle JSON parsing errors
+  if (err instanceof SyntaxError && 'body' in err) {
+    errorResponse.message = 'Invalid JSON in request body';
+    return res.status(400).json(errorResponse);
+  }
+  
   // Generic server error
-  res.status(err.status || 500).json(errorResponse);
+  const statusCode = err.status || err.statusCode || 500;
+  res.status(statusCode).json(errorResponse);
 }
 
 /**

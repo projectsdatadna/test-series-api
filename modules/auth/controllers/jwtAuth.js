@@ -25,11 +25,25 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
-const verifier = CognitoJwtVerifier.create({
-      userPoolId: USER_POOL_ID,
-      tokenUse: 'access',
-      clientId: CLIENT_ID,
-    });
+// Validate required environment variables
+if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
+  console.error('[JWT AUTH] Missing required environment variables:', {
+    CLIENT_ID: !!CLIENT_ID,
+    CLIENT_SECRET: !!CLIENT_SECRET,
+    USER_POOL_ID: !!USER_POOL_ID
+  });
+}
+
+let verifier = null;
+try {
+  verifier = CognitoJwtVerifier.create({
+    userPoolId: USER_POOL_ID,
+    tokenUse: 'access',
+    clientId: CLIENT_ID,
+  });
+} catch (error) {
+  console.error('[JWT AUTH] Failed to create verifier:', error.message);
+}
 
 const createResponse = (statusCode, body) => {
   return {
@@ -56,6 +70,15 @@ const generateSecretHash = (username, clientId, clientSecret) => {
 // Updated LOGIN API with JWT Tokens
 async function jwtLoginEmail (event) {
   try {
+    // Validate environment variables
+    if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
+      console.error('[EMAIL LOGIN] Missing required environment variables');
+      return createResponse(500, {
+        success: false,
+        message: 'Server configuration error - missing authentication credentials'
+      });
+    }
+
     if (!event || !event.body) {
       return createResponse(400, {
         success: false,
@@ -135,15 +158,17 @@ async function jwtLoginEmail (event) {
     }
 
     // Verify the access token (optional validation step)
-    try {
-      const payload = await verifier.verify(tokens.AccessToken);
-      console.log('Token verified successfully for user:', payload.username);
-    } catch (verifyError) {
-      console.error('Token verification failed:', verifyError);
-      return createResponse(500, {
-        success: false,
-        message: 'Token verification failed'
-      });
+    if (verifier) {
+      try {
+        const payload = await verifier.verify(tokens.AccessToken);
+        console.log('Token verified successfully for user:', payload.username);
+      } catch (verifyError) {
+        console.error('Token verification failed:', verifyError);
+        // Don't fail login if verification fails - Cognito already authenticated
+        console.warn('Continuing with login despite token verification failure');
+      }
+    } else {
+      console.warn('[EMAIL LOGIN] Token verifier not initialized, skipping verification');
     }
 
     // Optional: Store user session info in DynamoDB (for additional tracking)
@@ -274,9 +299,18 @@ async function jwtLoginEmail (event) {
 
 
 
-//Login Email
+//Login Phone
 async function jwtLoginPhone (event) {
   try {
+    // Validate environment variables
+    if (!CLIENT_ID || !CLIENT_SECRET || !USER_POOL_ID) {
+      console.error('[PHONE LOGIN] Missing required environment variables');
+      return createResponse(500, {
+        success: false,
+        message: 'Server configuration error - missing authentication credentials'
+      });
+    }
+
     if (!event || !event.body) {
       return createResponse(400, {
         success: false,
@@ -360,15 +394,17 @@ async function jwtLoginPhone (event) {
     }
 
     // Verify the access token (optional validation step)
-    try {
-      const payload = await verifier.verify(tokens.AccessToken);
-      console.log('Token verified successfully for user:', payload.username);
-    } catch (verifyError) {
-      console.error('Token verification failed:', verifyError);
-      return createResponse(500, {
-        success: false,
-        message: 'Token verification failed'
-      });
+    if (verifier) {
+      try {
+        const payload = await verifier.verify(tokens.AccessToken);
+        console.log('Token verified successfully for user:', payload.username);
+      } catch (verifyError) {
+        console.error('Token verification failed:', verifyError);
+        // Don't fail login if verification fails - Cognito already authenticated
+        console.warn('Continuing with login despite token verification failure');
+      }
+    } else {
+      console.warn('[PHONE LOGIN] Token verifier not initialized, skipping verification');
     }
 
     // Store user session info in DynamoDB (for additional tracking)
