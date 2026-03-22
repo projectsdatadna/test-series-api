@@ -21,6 +21,7 @@ const createAdaptiveContent = async (req, res) => {
       fileId,
       images,
       htmlContent,
+      jsonData,
       metadata,
     } = req.body;
 
@@ -49,6 +50,7 @@ const createAdaptiveContent = async (req, res) => {
       fileId,
       images,
       htmlContent,
+      jsonData,
       metadata,
     });
 

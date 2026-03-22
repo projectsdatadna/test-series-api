@@ -30,6 +30,7 @@ const createAdaptiveContent = async (contentData) => {
       fileId,
       images,
       htmlContent,
+      jsonData,
       metadata,
     } = contentData;
 
@@ -53,6 +54,7 @@ const createAdaptiveContent = async (contentData) => {
       fileId,
       images: images || [],
       htmlContent,
+      jsonData: jsonData || null,
       metadata: metadata || {},
       usedByClasses: 0,
       createdAt: new Date().toISOString(),
