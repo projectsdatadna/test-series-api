@@ -683,6 +683,505 @@ async function processSectionsToChunks(sections) {
   }
 }
 
+/**
+ * Split Science books (9th and 10th) with NCERT-specific structure
+ * Handles two-column layouts where sections appear out of order
+ * 
+ * NCERT Science books use:
+ * - Main sections: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, etc.
+ * - Subsections: 1.1.1, 1.1.2, 1.2.1, etc.
+ * - Activities: Activity 1.1, Activity 1.2, etc.
+ * 
+ * Strategy:
+ * 1. Find ALL section headers (including those with formatting issues)
+ * 2. Sort by section number (not by appearance) to handle two-column layouts
+ * 3. Extract content between consecutive sections
+ * 4. Include subsections and activities as part of their parent section
+ */
+
+/**
+ * Helper function to split Science book using custom section titles
+ * This bypasses regex detection and uses provided section numbers and titles
+ * 
+ * @param {string} text - The full text of the chapter
+ * @param {Array} customSectionTitles - Array of {number: "1.1", title: "Section Title"}
+ * @returns {Array} Array of sections with sectionNumber, title, and content
+ */
+function splitScienceBookWithCustomTitles(text, customSectionTitles) {
+  try {
+    console.log('[RAG] splitScienceBookWithCustomTitles - Using custom titles for ' + customSectionTitles.length + ' sections');
+
+    const sections = [];
+    
+    // Sort custom titles by section number
+    const sortedTitles = [...customSectionTitles].sort((a, b) => {
+      const aParts = a.number.split('.').map(Number);
+      const bParts = b.number.split('.').map(Number);
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aVal = aParts[i] || 0;
+        const bVal = bParts[i] || 0;
+        if (aVal !== bVal) return aVal - bVal;
+      }
+      return 0;
+    });
+
+    // Find positions of each section title in the text
+    const sectionPositions = [];
+    
+    sortedTitles.forEach(titleObj => {
+      const sectionNumber = titleObj.number;
+      const sectionTitle = titleObj.title;
+      
+      let foundIndex = -1;
+      
+      // Strategy 1: Look for the exact title
+      const titleRegex = new RegExp(
+        sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'),
+        'i'
+      );
+      const match = titleRegex.exec(text);
+      if (match) {
+        foundIndex = match.index;
+      }
+      
+      // Strategy 2: If not found, look for section number followed by title
+      if (foundIndex === -1) {
+        const numberTitleRegex = new RegExp(
+          sectionNumber.replace(/\./g, '\\.') + '\\s+' + 
+          sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'),
+          'i'
+        );
+        const match2 = numberTitleRegex.exec(text);
+        if (match2) {
+          foundIndex = match2.index;
+        }
+      }
+      
+      // Strategy 3: If still not found, look for just the section number
+      if (foundIndex === -1) {
+        const numberRegex = new RegExp('^\\s*' + sectionNumber.replace(/\./g, '\\.') + '\\s*$', 'gm');
+        const match3 = numberRegex.exec(text);
+        if (match3) {
+          foundIndex = match3.index;
+        }
+      }
+      
+      if (foundIndex !== -1) {
+        sectionPositions.push({
+          number: sectionNumber,
+          title: sectionTitle,
+          index: foundIndex
+        });
+        console.log('[RAG] Found section ' + sectionNumber + ' at position ' + foundIndex);
+      } else {
+        console.warn('[RAG] Could not find section ' + sectionNumber + ' in text');
+        // Still add it to maintain order, but mark as not found
+        sectionPositions.push({
+          number: sectionNumber,
+          title: sectionTitle,
+          index: -1
+        });
+      }
+    });
+
+    // Handle introduction (content before first found section)
+    const firstFoundIndex = sectionPositions.find(s => s.index !== -1);
+    if (firstFoundIndex && firstFoundIndex.index > 0) {
+      const preContent = text.substring(0, firstFoundIndex.index).trim();
+      if (preContent.length > 100) {
+        sections.push({
+          sectionNumber: '0',
+          title: 'Introduction',
+          content: preContent
+        });
+        console.log('[RAG] Added introduction section');
+      }
+    }
+
+    // CRITICAL: Sort section positions by their index in text (not by section number)
+    // This ensures we extract content in the order it appears in the text
+    const sortedByPosition = sectionPositions
+      .filter(s => s.index !== -1)
+      .sort((a, b) => a.index - b.index);
+
+    console.log('[RAG] Sections sorted by text position:', sortedByPosition.map(s => `${s.number} at ${s.index}`).join(', '));
+
+    // Extract content for each section based on text position
+    for (let i = 0; i < sortedByPosition.length; i++) {
+      const currentSection = sortedByPosition[i];
+
+      // Find the next section in text position
+      let nextIndex = text.length;
+      if (i + 1 < sortedByPosition.length) {
+        nextIndex = sortedByPosition[i + 1].index;
+      }
+
+      const contentStart = currentSection.index;
+      const contentEnd = nextIndex;
+      const sectionContent = text.substring(contentStart, contentEnd).trim();
+
+      if (sectionContent.length > 0) {
+        sections.push({
+          sectionNumber: currentSection.number,
+          title: currentSection.title,
+          content: sectionContent
+        });
+        console.log('[RAG] Added section ' + currentSection.number + ': "' + currentSection.title + '" (' + sectionContent.length + ' chars)');
+      }
+    }
+
+    console.log('[RAG] splitScienceBookWithCustomTitles - Successfully split into ' + sections.length + ' sections');
+    return sections.length > 0 ? sections : [{
+      sectionNumber: '1',
+      title: 'Full Chapter',
+      content: text.trim()
+    }];
+
+  } catch (error) {
+    console.error('[RAG] Error in splitScienceBookWithCustomTitles:', error.message);
+    return [{
+      sectionNumber: '1',
+      title: 'Full Chapter',
+      content: text.trim()
+    }];
+  }
+}
+
+function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
+  try {
+    console.log('[RAG] splitScienceBook - Analyzing NCERT Science book with two-column layout handling');
+
+    // If custom section titles are provided, use them directly
+    if (customSectionTitles && Array.isArray(customSectionTitles) && customSectionTitles.length > 0) {
+      console.log('[RAG] splitScienceBook - Using custom section titles:', customSectionTitles.map(s => `${s.number}: ${s.title}`).join(', '));
+      return splitScienceBookWithCustomTitles(text, customSectionTitles);
+    }
+
+    const allMatches = [];
+    const seenSectionNumbers = new Set();
+
+    // Helper function to check if a number is a main section (X.Y) not a subsection (X.Y.Z)
+    const isMainSection = (numberStr) => {
+      const parts = numberStr.split('.');
+      return parts.length === 2 && parts[0] && parts[1];
+    };
+
+    // Helper function to check if a line looks like a section header (not content)
+    // Section headers typically have 1-5 words, content lines have more
+    const looksLikeSectionTitle = (text) => {
+      if (!text || text.length === 0) return false;
+      const words = text.trim().split(/\s+/);
+      // Section titles are usually 1-6 words and don't contain numbers in the middle
+      if (words.length > 6) return false;
+      // Check if it looks like content (has numbers, formulas, etc.)
+      if (/\d+\.\d+\s*[=×÷+\-]/.test(text)) return false; // Looks like math/formula
+      if (/\(\d+\)/.test(text)) return false; // Looks like numbered list
+      return true;
+    };
+
+    // Pattern 1: Standard section with title on same line (1.1 Title)
+    const pattern1 = /^\s*(\d+\.\d+(?:\.\d+)?)\s+([A-Z][a-zA-Z\s\-:,;?!]+?)$/gm;
+    let match;
+    while ((match = pattern1.exec(text)) !== null) {
+      const sectionNumber = match[1];
+      
+      // Skip subsections (X.Y.Z format)
+      if (!isMainSection(sectionNumber)) continue;
+      
+      let sectionTitle = match[2].trim();
+      sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+
+      // Skip if invalid title (only numbers/symbols)
+      if (sectionTitle.length > 0 && /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // Skip if doesn't look like a section title
+      if (!looksLikeSectionTitle(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // If title doesn't end with punctuation, check if it continues on next line
+      if (sectionTitle && !sectionTitle.match(/[?.!]$/)) {
+        const matchEndLine = text.indexOf('\n', match.index);
+        if (matchEndLine !== -1) {
+          const nextLineStart = matchEndLine + 1;
+          const nextLineEnd = text.indexOf('\n', nextLineStart);
+          const nextLine = text.substring(nextLineStart, nextLineEnd).trim();
+          
+          // If next line is short and starts with a letter, it's likely a continuation
+          if (nextLine && /^[a-zA-Z]/.test(nextLine) && nextLine.length < 50 && !nextLine.match(/^(On|The|In|For|With|By|As|At|From|To|And|Or|But|If|When|Where|Why|How|This|That|These|Those|Which|Who|What|Where|When|Why|How)\s/)) {
+            sectionTitle = sectionTitle + ' ' + nextLine;
+            sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+          }
+        }
+      }
+
+      const lineNum = text.substring(0, match.index).split('\n').length - 1;
+      const key = sectionNumber + ':' + lineNum;
+      if (!seenSectionNumbers.has(key)) {
+        seenSectionNumbers.add(key);
+        allMatches.push({
+          number: sectionNumber,
+          title: sectionTitle,
+          index: match.index,
+          line: lineNum
+        });
+      }
+    }
+
+    // Pattern 2: Section number alone on a line (1.3, 1.4) - these are activities
+    const pattern2 = /^\s*(\d+\.\d+)\s*$/gm;
+    while ((match = pattern2.exec(text)) !== null) {
+      const sectionNumber = match[1];
+      
+      // Skip subsections
+      if (!isMainSection(sectionNumber)) continue;
+      
+      const lineNum = text.substring(0, match.index).split('\n').length - 1;
+
+      // For standalone section numbers, try to get title from next line
+      const nextLineStart = match.index + match[0].length;
+      const nextLineEnd = text.indexOf('\n', nextLineStart);
+      let nextLine = text.substring(nextLineStart, nextLineEnd).trim();
+
+      // If next line starts with bullet or is activity content, no title
+      if (nextLine.startsWith('ΓÇó') || nextLine.startsWith('•') || nextLine.startsWith('-')) {
+        nextLine = '';
+      }
+
+      allMatches.push({
+        number: sectionNumber,
+        title: nextLine,
+        index: match.index,
+        line: lineNum
+      });
+    }
+
+    // Pattern 3: Section number with title on next line (1.2\nCharacteristics...)
+    // This handles cases where title wraps to next line
+    const pattern3 = /^\s*(\d+\.\d+)\s*\n\s*([A-Z][a-zA-Z\s\-:,;?!]+?)$/gm;
+    while ((match = pattern3.exec(text)) !== null) {
+      const sectionNumber = match[1];
+      
+      // Skip subsections
+      if (!isMainSection(sectionNumber)) continue;
+      
+      let sectionTitle = match[2].trim();
+      sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+
+      // Skip if invalid title
+      if (sectionTitle.length > 0 && /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // Skip if doesn't look like a section title
+      if (!looksLikeSectionTitle(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      const lineNum = text.substring(0, match.index).split('\n').length - 1;
+
+      allMatches.push({
+        number: sectionNumber,
+        title: sectionTitle,
+        index: match.index,
+        line: lineNum
+      });
+    }
+
+    // Pattern 4: Section number directly followed by title (1.2Characteristics...)
+    // This handles cases where there's no space between number and title
+    const pattern4 = /^\s*(\d+\.\d+)([A-Z][a-zA-Z\s\-:,;?!]+?)$/gm;
+    while ((match = pattern4.exec(text)) !== null) {
+      const sectionNumber = match[1];
+      
+      // Skip subsections
+      if (!isMainSection(sectionNumber)) continue;
+      
+      let sectionTitle = match[2].trim();
+      sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+
+      // Skip if invalid title
+      if (sectionTitle.length > 0 && /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // Skip if doesn't look like a section title
+      if (!looksLikeSectionTitle(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // If title doesn't end with punctuation, check if it continues on next line
+      if (sectionTitle && !sectionTitle.match(/[?.!]$/)) {
+        const matchEndLine = text.indexOf('\n', match.index);
+        if (matchEndLine !== -1) {
+          const nextLineStart = matchEndLine + 1;
+          const nextLineEnd = text.indexOf('\n', nextLineStart);
+          const nextLine = text.substring(nextLineStart, nextLineEnd).trim();
+          
+          // If next line is short and starts with a letter, it's likely a continuation
+          if (nextLine && /^[a-zA-Z]/.test(nextLine) && nextLine.length < 50 && !nextLine.match(/^(On|The|In|For|With|By|As|At|From|To|And|Or|But|If|When|Where|Why|How|This|That|These|Those|Which|Who|What|Where|When|Why|How)\s/)) {
+            sectionTitle = sectionTitle + ' ' + nextLine;
+            sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+          }
+        }
+      }
+
+      const lineNum = text.substring(0, match.index).split('\n').length - 1;
+
+      allMatches.push({
+        number: sectionNumber,
+        title: sectionTitle,
+        index: match.index,
+        line: lineNum
+      });
+    }
+
+    // Pattern 5: Section number with multi-line title (1.2\nWhat are the Types of\nPure Substances)
+    // This handles wrapped titles that span 2-3 lines
+    const pattern5 = /^\s*(\d+\.\d+)\s*\n\s*([A-Z][a-zA-Z\s\-:,;?!]+?)\n\s*([a-z][a-zA-Z\s\-:,;?!]+?)$/gm;
+    while ((match = pattern5.exec(text)) !== null) {
+      const sectionNumber = match[1];
+      
+      // Skip subsections
+      if (!isMainSection(sectionNumber)) continue;
+      
+      let sectionTitle = (match[2] + ' ' + match[3]).trim();
+      sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
+
+      // Skip if invalid title
+      if (sectionTitle.length > 0 && /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      // Skip if doesn't look like a section title
+      if (!looksLikeSectionTitle(sectionTitle)) {
+        sectionTitle = '';
+      }
+
+      const lineNum = text.substring(0, match.index).split('\n').length - 1;
+
+      allMatches.push({
+        number: sectionNumber,
+        title: sectionTitle,
+        index: match.index,
+        line: lineNum
+      });
+    }
+
+    // IMPORTANT: Remove duplicate section numbers, keeping the one with a title
+    // This handles cases where a section appears multiple times (e.g., activity 1.3 vs main section 1.3)
+    const uniqueSections = {};
+    allMatches.forEach(match => {
+      if (!uniqueSections[match.number]) {
+        uniqueSections[match.number] = match;
+      } else {
+        // If new match has a title and existing doesn't, replace it
+        if (match.title && !uniqueSections[match.number].title) {
+          uniqueSections[match.number] = match;
+        }
+        // If both have titles, keep the one that appears later (more likely to be the main section)
+        else if (match.title && uniqueSections[match.number].title && match.index > uniqueSections[match.number].index) {
+          uniqueSections[match.number] = match;
+        }
+        // If existing has no title and new has no title, keep the one that appears later
+        else if (!match.title && !uniqueSections[match.number].title && match.index > uniqueSections[match.number].index) {
+          uniqueSections[match.number] = match;
+        }
+      }
+    });
+    
+    // Convert back to array
+    allMatches.length = 0;
+    Object.values(uniqueSections).forEach(match => allMatches.push(match));
+
+    if (allMatches.length === 0) {
+      console.log('[RAG] splitScienceBook - No sections found, using fallback');
+      return [{
+        sectionNumber: '1',
+        title: 'Full Chapter',
+        content: text.trim()
+      }];
+    }
+
+    // CRITICAL: Sort by section number (not by appearance) to handle two-column layouts
+    allMatches.sort((a, b) => {
+      const aParts = a.number.split('.').map(Number);
+      const bParts = b.number.split('.').map(Number);
+
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aVal = aParts[i] || 0;
+        const bVal = bParts[i] || 0;
+        if (aVal !== bVal) return aVal - bVal;
+      }
+      return 0;
+    });
+
+    console.log('[RAG] splitScienceBook - Found ' + allMatches.length + ' sections (sorted by number):');
+    allMatches.forEach(m => {
+      console.log('[RAG]   ' + m.number + ': ' + (m.title || '(no title)') + ' (appears at line ' + m.line + ')');
+    });
+
+    const sections = [];
+
+    // Handle introduction (content before first section)
+    const firstSectionIndex = Math.min(...allMatches.map(m => m.index));
+    if (firstSectionIndex > 0) {
+      const preContent = text.substring(0, firstSectionIndex).trim();
+      if (preContent.length > 100) {
+        sections.push({
+          sectionNumber: '0',
+          title: 'Introduction',
+          content: preContent
+        });
+        console.log('[RAG] splitScienceBook - Added introduction section');
+      }
+    }
+
+    // Extract content for each section
+    allMatches.forEach((match, idx) => {
+      // Find the next section that appears after this one in the original text
+      let nextIndex = text.length;
+
+      for (let i = 0; i < allMatches.length; i++) {
+        if (allMatches[i].index > match.index && allMatches[i].index < nextIndex) {
+          nextIndex = allMatches[i].index;
+        }
+      }
+
+      const contentStart = match.index;
+      const contentEnd = nextIndex;
+      const sectionContent = text.substring(contentStart, contentEnd).trim();
+
+      if (sectionContent.length > 0) {
+        sections.push({
+          sectionNumber: match.number,
+          title: match.title || match.number,
+          content: sectionContent
+        });
+        console.log('[RAG] splitScienceBook - Added section ' + match.number + ': "' + (match.title || match.number) + '" (' + sectionContent.length + ' chars)');
+      }
+    });
+
+    console.log('[RAG] splitScienceBook - Successfully split into ' + sections.length + ' sections');
+    return sections.length > 0 ? sections : [{
+      sectionNumber: '1',
+      title: 'Full Chapter',
+      content: text.trim()
+    }];
+
+  } catch (error) {
+    console.error('[RAG] Error in splitScienceBook:', error.message);
+    return [{
+      sectionNumber: '1',
+      title: 'Full Chapter',
+      content: text.trim()
+    }];
+  }
+}
+
+
 module.exports = {
   splitByHeadings,
   splitBySections,
@@ -693,5 +1192,6 @@ module.exports = {
   splitByPageRanges,
   splitByChaptersAndSections,
   splitByManualAnchors,
-  splitByRegex
+  splitByRegex,
+  splitScienceBook
 };

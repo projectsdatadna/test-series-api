@@ -355,6 +355,34 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           sectionType: s.sectionType,
           wordCount: s.metadata?.wordCount
         })));
+      } else if (subjectId === 'SUB_SCI' || subjectId === 'Science' || subjectId === 'विज्ञान' || 
+                 (standardId && (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
+                  subjectId && (subjectId.toLowerCase().includes('science') || subjectId.toLowerCase().includes('sci')))) {
+        // Use Science-specific splitting for 9th and 10th Science books
+        const { splitScienceBook } = require('./textSplitter');
+        console.log(`[RAG] Using Science-specific splitting for ${standardId} ${subjectId}`);
+        
+        if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
+          console.log(`[RAG] Using custom section titles for Science book: ${sectionTitles.length} sections`);
+          sections = splitScienceBook(text, subjectId, sectionTitles);
+        } else {
+          console.log(`[RAG] Using automatic Science book splitting with flexible regex patterns`);
+          sections = splitScienceBook(text, subjectId);
+        }
+        
+        console.log('[RAG] Science splitter returned sections:', sections.map(s => ({
+          sectionNumber: s.sectionNumber,
+          sectionTitle: s.title || s.sectionTitle,
+          contentLength: s.content.length
+        })));
+        
+        // Normalize section format
+        sections = sections.map(s => ({
+          sectionNumber: s.sectionNumber,
+          sectionTitle: s.title || s.sectionTitle,
+          sectionType: 'content',
+          content: s.content
+        }));
       } else if (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) {
         // Use page-based splitting if pageRanges provided (takes precedence)
         if (splitPattern && splitPattern !== 'regex_based') {
