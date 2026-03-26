@@ -94,6 +94,56 @@ router.get('/history', async (req, res) => {
   }
 });
 
+router.put('/update-visual-image', async (req, res) => {
+  try {
+    const { contentId, visualIndex, imageUrl, imageId } = req.body;
+
+    if (!contentId || visualIndex === undefined || !imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'contentId, visualIndex, and imageUrl are required',
+      });
+    }
+
+    const getResult = await ddb.send(new GetCommand({
+      TableName: TABLE,
+      Key: { contentId },
+    }));
+
+    if (!getResult.Item) {
+      return res.status(404).json({ success: false, error: 'Content not found' });
+    }
+
+    const visualSuggestions = getResult.Item.contentData?.explanation?.visualSuggestions;
+
+    if (!Array.isArray(visualSuggestions)) {
+      return res.status(400).json({ success: false, error: 'No visualSuggestions found' });
+    }
+
+    // Patch only the specific visual's generatedImageUrl
+    const updatedVisuals = visualSuggestions.map((v, i) =>
+      i === visualIndex
+        ? { ...v, generatedImageUrl: imageUrl, generatedImageId: imageId || null }
+        : v
+    );
+
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { contentId },
+      UpdateExpression: 'SET contentData.explanation.visualSuggestions = :vs, updatedAt = :t',
+      ExpressionAttributeValues: {
+        ':vs': updatedVisuals,
+        ':t':  new Date().toISOString(),
+      },
+    }));
+
+    res.json({ success: true, message: 'Visual image URL saved to content' });
+  } catch (error) {
+    console.error('Error updating visual image:', error);
+    res.status(500).json({ success: false, error: 'Failed to update visual image' });
+  }
+});
+
 // PUT /remedial/update-question — Edit a specific question in saved content
 router.put('/update-question', async (req, res) => {
   try {
