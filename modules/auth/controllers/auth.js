@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
   // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -64,7 +64,7 @@ async function emailsignUp(event) {
       });
     }
 
-     if (event.httpMethod === "OPTIONS") {
+    if (event.httpMethod === "OPTIONS") {
       return createResponse(200, {});
     }
     // let parsedBody;
@@ -205,7 +205,7 @@ async function emailsignUp(event) {
       firstName: firstName,
       lastName: lastName,
       confirmationStatus: 'pending',
-      role_id: roleId || 'student',
+      role_id: roleId || 'student'
     };
 
     await dynamoDB.put({
@@ -246,7 +246,7 @@ async function emailsignUp(event) {
       error: error.message
     });
   }
-};
+}
 
 //2. phone sign up
 async function phoneSignUp(event){
@@ -442,7 +442,7 @@ async function phoneSignUp(event){
       error: error.message
     });
   }
-};
+}
 
 
 /**
@@ -499,7 +499,7 @@ async function confirmSignUp(event) {
       Key: { 'user_id': userId },
       UpdateExpression: 'SET confirmationStatus = :status',
       ExpressionAttributeValues: {
-            ':status': 'confirmed',
+        ':status': 'confirmed'
       }
     };
     await dynamoDB.update(updateParams).promise();
@@ -549,7 +549,7 @@ async function confirmSignUp(event) {
       error: error.message
     });
   }
-};
+}
 
 /**
  * 4. CONFIRM SIGN UP API for Phone Number
@@ -605,7 +605,7 @@ async function confirmPhoneSignUp(event) {
       Key: { 'user_id': userId },
       UpdateExpression: 'SET confirmationStatus = :status',
       ExpressionAttributeValues: {
-            ':status': 'confirmed',
+        ':status': 'confirmed'
       }
     };
     await dynamoDB.update(updateParams).promise();
@@ -655,7 +655,7 @@ async function confirmPhoneSignUp(event) {
       error: error.message
     });
   }
-};
+}
 
 
 
@@ -689,7 +689,7 @@ async function forgotPasswordEmail (event)  {
     const params = {
       ClientId: CLIENT_ID,
       Username: email,
-      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET),
+      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET)
     };
 
     await cognito.forgotPassword(params).promise();
@@ -735,7 +735,7 @@ async function forgotPasswordEmail (event)  {
       error: error.message
     });
   }
-};
+}
 
 async function forgotPasswordPhone (event) {
   try {
@@ -768,7 +768,7 @@ async function forgotPasswordPhone (event) {
     const params = {
       ClientId: CLIENT_ID,
       Username: formattedPhone,
-      SecretHash: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET),
+      SecretHash: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET)
     };
 
     await cognito.forgotPassword(params).promise();
@@ -814,7 +814,7 @@ async function forgotPasswordPhone (event) {
       error: error.message
     });
   }
-};
+}
 
 // email password confirmation
 async function emailForgetResetPassword (event) {
@@ -848,7 +848,7 @@ async function emailForgetResetPassword (event) {
       Username: email,
       Password: newPassword,
       ConfirmationCode: confirmationCode,
-      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET),
+      SecretHash: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET)
     };
 
     await cognito.confirmForgotPassword(params).promise();
@@ -901,7 +901,7 @@ async function emailForgetResetPassword (event) {
       error: error.message
     });
   }
-};
+}
 
 async function phoneForgetResetPassword (event)  {
   try {
@@ -936,7 +936,7 @@ async function phoneForgetResetPassword (event)  {
       Username: formattedPhone,
       Password: newPassword,
       ConfirmationCode: confirmationCode,
-      SecretHash: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET),
+      SecretHash: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET)
     };
 
     await cognito.confirmForgotPassword(params).promise();
@@ -989,7 +989,7 @@ async function phoneForgetResetPassword (event)  {
       error: error.message
     });
   }
-};
+}
 
 
 // Profile Setup - Store user preferences and educational details
@@ -1007,7 +1007,7 @@ async function profileSetup(event) {
       firstName,
       lastName,
       email,
-      phone, 
+      phone,
       institutionName,
       schoolName,
       grades,

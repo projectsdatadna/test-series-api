@@ -4,14 +4,14 @@ const {
   DynamoDBDocumentClient,
   PutCommand,
   ScanCommand,
-  GetCommand,
+  GetCommand
 } = require('@aws-sdk/lib-dynamodb');
 
 
 const router = express.Router();
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-east-1'
 });
 const ddbDocClient = DynamoDBDocumentClient.from(client);
 
@@ -24,7 +24,7 @@ async function getNextStudentId() {
   try {
     const command = new ScanCommand({
       TableName: STUDENT_TABLE,
-      ProjectionExpression: 'studentId',
+      ProjectionExpression: 'studentId'
     });
 
     const response = await ddbDocClient.send(command);
@@ -50,7 +50,7 @@ async function getSchoolDetails(schoolId) {
   try {
     const command = new GetCommand({
       TableName: SCHOOL_TABLE,
-      Key: { schoolId },
+      Key: { schoolId }
     });
     const response = await ddbDocClient.send(command);
     return response.Item || null;
@@ -65,7 +65,7 @@ async function getTeacherDetails(teacherId) {
   try {
     const command = new GetCommand({
       TableName: TEACHER_TABLE,
-      Key: { teacherId },
+      Key: { teacherId }
     });
     const response = await ddbDocClient.send(command);
     return response.Item || null;
@@ -88,7 +88,7 @@ router.get('/students', async (req, res) => {
     res.json({
       success: true,
       data: sorted,
-      count: sorted.length,
+      count: sorted.length
     });
   } catch (error) {
     console.error('Error fetching students:', error);
@@ -106,7 +106,7 @@ router.post('/students', async (req, res) => {
     if (!name?.trim() || !email?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'Name and Email are required',
+        error: 'Name and Email are required'
       });
     }
 
@@ -145,12 +145,12 @@ router.post('/students', async (req, res) => {
       schoolName,                     // ✅ Fetched from school table
       teacherId: teacherId || '',     // ✅ Reference to teacher
       teacherName,                    // ✅ Fetched from teacher table
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
 
     const command = new PutCommand({
       TableName: STUDENT_TABLE,
-      Item: newStudent,
+      Item: newStudent
     });
 
     await ddbDocClient.send(command);
@@ -158,7 +158,7 @@ router.post('/students', async (req, res) => {
     res.status(201).json({
       success: true,
       data: newStudent,
-      message: 'Student added successfully',
+      message: 'Student added successfully'
     });
   } catch (error) {
     console.error('Error adding student:', error);

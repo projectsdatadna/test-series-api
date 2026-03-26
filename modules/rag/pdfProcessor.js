@@ -144,10 +144,6 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           }
 
           // Get all content from the start of the last detected unit to the end
-          const contentFromLastUnit = lines.slice(lastUnitStartLine).join('\n');
-
-          // Re-split this content to include the missing units
-          const totalUnitsInThisSection = (maxProvidedUnit - maxDetectedUnit) + 1; // +1 for the last detected unit
           const linesInThisSection = lines.slice(lastUnitStartLine);
 
           // Remove the last detected unit from our units array (we'll re-add it with correct boundaries)
@@ -156,6 +152,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           }
 
           // Split the content equally among all units in this section
+          const totalUnitsInThisSection = (maxProvidedUnit - maxDetectedUnit) + 1; // +1 for the last detected unit
           const chunkSize = Math.floor(linesInThisSection.length / totalUnitsInThisSection);
 
           for (let i = 0; i < totalUnitsInThisSection; i++) {
@@ -321,41 +318,122 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       console.log(`[RAG] Successfully stored ${storedSections.length} sections from ${units.length} units`);
       return storedSections;
     } else {
-      // Use Claude API for ALL books - unified approach for all subjects, standards, and syllabuses
-      const { splitBookWithClaude } = require('./claudeSplitter');
+      // Check if user explicitly selected AI-based splitting
+      const useAIBased = splitPattern === 'ai_based';
 
-      console.log('\n========== CLAUDE API - UNIFIED SPLITTING FOR ALL BOOKS ==========');
-      console.log(`[RAG] Book metadata: ${standardId} ${subjectId} (${syllabusId})`);
-      console.log(`[RAG] Using Claude API for book splitting`);
-      console.log(`[RAG] Firebase API URL from env: ${process.env.FIREBASE_API_URL || 'NOT SET (using default)'}`);
-      console.log(`[RAG] Text to split: ${text.length} characters`);
-      console.log(`[RAG] Chapter name: ${chapterName}`);
+      if (useAIBased) {
+        // Use Claude API for AI-based splitting
+        const { splitBookWithClaude } = require('./claudeSplitter');
 
-      try {
-        console.log('[RAG] Calling splitBookWithClaude...');
-        sections = await splitBookWithClaude(text, chapterName, {
-          subjectId,
-          standardId,
-          syllabusId,
-          bookType,
-          division
-        });
-        console.log(`[RAG] Claude API returned ${sections.length} sections`);
-      } catch (claudeError) {
-        console.warn('\n========== CLAUDE API FAILED - FALLBACK TRIGGERED ==========');
-        console.warn('[RAG] Claude API splitting failed:', claudeError.message);
-        console.warn('[RAG] Error details:', {
-          code: claudeError.code,
-          status: claudeError.response?.status,
-          message: claudeError.message
-        });
-        console.warn('[RAG] Falling back to regex-based splitting...');
+        console.log('\n========== CLAUDE API - AI BASED SPLITTING ==========');
+        console.log(`[RAG] Book metadata: ${standardId} ${subjectId} (${syllabusId})`);
+        console.log(`[RAG] Using Claude API for book splitting`);
+        console.log(`[RAG] Firebase API URL from env: ${process.env.FIREBASE_API_URL || 'NOT SET (using default)'}`);
+        console.log(`[RAG] Text to split: ${text.length} characters`);
+        console.log(`[RAG] Chapter name: ${chapterName}`);
 
-        // Fallback to regex-based splitting
-        /* COMMENTED OUT - Other splitting methods now disabled, using Claude API exclusively
-        const { splitBySections, splitByChaptersAndSections, splitByManualAnchors, splitByHeadings } = require('./textSplitter');
+        try {
+          console.log('[RAG] Calling splitBookWithClaude...');
+          sections = await splitBookWithClaude(text, chapterName, {
+            subjectId,
+            standardId,
+            syllabusId,
+            bookType,
+            division
+          });
+          console.log(`[RAG] Claude API returned ${sections.length} sections`);
+        } catch (claudeError) {
+          console.warn('\n========== CLAUDE API FAILED ==========');
+          console.warn('[RAG] Claude API splitting failed:', claudeError.message);
+          console.warn('[RAG] Error details:', {
+            code: claudeError.code,
+            status: claudeError.response?.status,
+            message: claudeError.message
+          });
+          throw claudeError;
+        }
 
-        switch (splitPattern) {
+        console.log('[RAG] Splitter returned sections:', sections.map(s => ({
+          sectionNumber: s.sectionNumber,
+          sectionTitle: s.title || s.sectionTitle,
+          contentLength: s.content?.length || 0
+        })));
+
+        // Normalize section format
+        sections = sections.map(s => ({
+          sectionNumber: s.sectionNumber,
+          sectionTitle: s.title || s.sectionTitle,
+          sectionType: 'content',
+          content: s.content
+        }));
+        console.log('========== CLAUDE API SPLITTING COMPLETE ==========\n');
+      } else {
+        // Use traditional splitting methods based on splitPattern
+        const { splitBySections, splitByChaptersAndSections, splitByManualAnchors, splitByHeadings, splitByPageRanges } = require('./textSplitter');
+        const { splitEnglishBook } = require('./englishSplitter');
+        const { splitHindiBook, splitHindiBookByHeadings, splitHindiBookWithTitles } = require('./hindiSplitter');
+
+        // Check if this is 9th or 10th English
+        const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
+                               (subjectId === 'SUB_ENG' || subjectId === 'English');
+
+        console.log('[RAG] processPDFToSections - isEnglish9or10:', isEnglish9or10, 'division:', division, 'bookType:', bookType);
+
+        // For 9th/10th English with heading_based pattern and sectionTitles, use heading-based splitting
+        if (isEnglish9or10 && splitPattern === 'heading_based' && sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
+          console.log(`[RAG] Using heading_based splitting for ${standardId} ${subjectId} with provided section titles`);
+          const headingSections = splitByHeadings(text, sectionTitles);
+          sections = headingSections.map(s => ({
+            sectionNumber: s.sectionNumber,
+            sectionTitle: s.sectionTitle,
+            sectionType: 'content',
+            content: s.content
+          }));
+          console.log('[RAG] Heading-based splitter returned sections:', sections.map(s => ({
+            sectionNumber: s.sectionNumber,
+            sectionTitle: s.sectionTitle,
+            contentLength: s.content.length
+          })));
+        } else if (isEnglish9or10 && division) {
+          // Use English-specific splitting
+          console.log(`[RAG] Using English-specific splitting for ${standardId} ${subjectId} - ${division}`);
+          sections = splitEnglishBook(text, division);
+          console.log('[RAG] English splitter returned sections:', sections.map(s => ({
+            sectionNumber: s.sectionNumber,
+            sectionTitle: s.sectionTitle,
+            sectionType: s.sectionType
+          })));
+        } else if (subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी') {
+          // Use Hindi-specific splitting
+          console.log(`[RAG] Using Hindi-specific splitting for ${standardId} ${subjectId}`);
+
+          if (syllabusId && syllabusId.toUpperCase().includes('NCERT')) {
+            console.log(`[RAG] Detected NCERT Hindi book, using heading-based splitting`);
+            sections = splitHindiBookByHeadings(text);
+          } else if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
+            console.log(`[RAG] Using custom section titles for Hindi book: ${sectionTitles.length} sections`);
+            sections = splitHindiBookWithTitles(text, sectionTitles);
+          } else {
+            console.log(`[RAG] Using automatic Hindi book splitting`);
+            sections = splitHindiBook(text);
+          }
+
+          console.log('[RAG] Hindi splitter returned sections:', sections.map(s => ({
+            sectionNumber: s.sectionNumber,
+            sectionTitle: s.sectionTitle,
+            sectionType: s.sectionType,
+            wordCount: s.metadata?.wordCount
+          })));
+        } else if (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) {
+          // Use page-based splitting if pageRanges provided
+          if (splitPattern && splitPattern !== 'regex_based') {
+            console.warn(`[RAG] splitPattern '${splitPattern}' is ignored because pageRanges is provided`);
+          }
+          console.log(`[RAG] Using page_ranges splitting strategy`);
+          sections = splitByPageRanges(text, pageRanges);
+        } else {
+          // Use the specified split pattern
+          switch (splitPattern) {
           case 'regex_based':
             console.log(`[RAG] Using regex_based splitting strategy`);
             sections = splitBySections(text);
@@ -384,93 +462,9 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           default:
             console.log(`[RAG] Unknown split pattern '${splitPattern}', defaulting to regex_based`);
             sections = splitBySections(text);
+          }
         }
-        */
-
-        // For now, throw error to indicate fallback is not implemented
-        throw new Error('Claude API failed and fallback is disabled. Please check Firebase API configuration.');
       }
-
-      console.log('[RAG] Splitter returned sections:', sections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionTitle: s.title || s.sectionTitle,
-        contentLength: s.content?.length || 0
-      })));
-
-      // Normalize section format
-      sections = sections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionTitle: s.title || s.sectionTitle,
-        sectionType: 'content',
-        content: s.content
-      }));
-      console.log('========== CLAUDE API SPLITTING COMPLETE ==========\n');
-
-      /* COMMENTED OUT - All other splitting methods disabled in favor of Claude API
-      // Check if this is 9th or 10th English - use specialized splitting
-      const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
-                             (subjectId === 'SUB_ENG' || subjectId === 'English');
-
-      console.log('[RAG] processPDFToSections - isEnglish9or10:', isEnglish9or10, 'division:', division, 'bookType:', bookType);
-
-      // For 9th/10th English with heading_based pattern and sectionTitles, use heading-based splitting
-      if (isEnglish9or10 && splitPattern === 'heading_based' && sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
-        console.log(`[RAG] Using heading_based splitting for ${standardId} ${subjectId} with provided section titles`);
-        const { splitByHeadings } = require('./textSplitter');
-        const headingSections = splitByHeadings(text, sectionTitles);
-        sections = headingSections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          sectionType: 'content',
-          content: s.content
-        }));
-        console.log('[RAG] Heading-based splitter returned sections:', sections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          contentLength: s.content.length
-        })));
-      } else if (isEnglish9or10 && division) {
-        // Use English-specific splitting
-        const { splitEnglishBook } = require('./englishSplitter');
-        console.log(`[RAG] Using English-specific splitting for ${standardId} ${subjectId} - ${division}`);
-        sections = splitEnglishBook(text, division);
-        console.log('[RAG] English splitter returned sections:', sections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          sectionType: s.sectionType
-        })));
-      } else if (subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी') {
-        // Use Hindi-specific splitting for NCERT Hindi books
-        const { splitHindiBook, splitHindiBookByHeadings, splitHindiBookWithTitles } = require('./hindiSplitter');
-        console.log(`[RAG] Using Hindi-specific splitting for ${standardId} ${subjectId}`);
-
-        if (syllabusId && syllabusId.toUpperCase().includes('NCERT')) {
-          console.log(`[RAG] Detected NCERT Hindi book, using heading-based splitting`);
-          sections = splitHindiBookByHeadings(text);
-        } else if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
-          console.log(`[RAG] Using custom section titles for Hindi book: ${sectionTitles.length} sections`);
-          sections = splitHindiBookWithTitles(text, sectionTitles);
-        } else {
-          console.log(`[RAG] Using automatic Hindi book splitting`);
-          sections = splitHindiBook(text);
-        }
-
-        console.log('[RAG] Hindi splitter returned sections:', sections.map(s => ({
-          sectionNumber: s.sectionNumber,
-          sectionTitle: s.sectionTitle,
-          sectionType: s.sectionType,
-          wordCount: s.metadata?.wordCount
-        })));
-      } else if (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) {
-        // Use page-based splitting if pageRanges provided (takes precedence)
-        if (splitPattern && splitPattern !== 'regex_based') {
-          console.warn(`[RAG] splitPattern '${splitPattern}' is ignored because pageRanges is provided`);
-        }
-        const { splitByPageRanges } = require('./textSplitter');
-        sections = splitByPageRanges(text, pageRanges);
-        console.log(`[RAG] Using page_ranges splitting strategy`);
-      }
-      */
     }
 
     console.log('[RAG] processPDFToSections - Sections after splitting:', sections.map(s => ({
@@ -503,7 +497,6 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       console.log(`[RAG] Only one section found but chapterName not available. Current title: "${sections[0].title || sections[0].sectionTitle}"`);
     }
 
-    // Verify section content
     // Process sections to create chunks
     const { processSectionsToChunks } = require('./textSplitter');
     const allChunks = await processSectionsToChunks(sections);
@@ -596,6 +589,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     throw error;
   }
 }
+
 
 /**
  * Process multiple PDFs

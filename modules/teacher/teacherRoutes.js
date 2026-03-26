@@ -4,14 +4,14 @@ const {
   DynamoDBDocumentClient,
   PutCommand,
   ScanCommand,
-  GetCommand,
+  GetCommand
 } = require('@aws-sdk/lib-dynamodb');
 
 
 const router = express.Router();
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-east-1'
 });
 const ddbDocClient = DynamoDBDocumentClient.from(client);
 
@@ -23,7 +23,7 @@ async function getNextTeacherId() {
   try {
     const command = new ScanCommand({
       TableName: TEACHER_TABLE,
-      ProjectionExpression: 'teacherId',
+      ProjectionExpression: 'teacherId'
     });
 
     const response = await ddbDocClient.send(command);
@@ -49,7 +49,7 @@ async function getSchoolDetails(schoolId) {
   try {
     const command = new GetCommand({
       TableName: SCHOOL_TABLE,
-      Key: { schoolId },
+      Key: { schoolId }
     });
     const response = await ddbDocClient.send(command);
     return response.Item || null;
@@ -72,7 +72,7 @@ router.get('/teachers', async (req, res) => {
     res.json({
       success: true,
       data: sorted,
-      count: sorted.length,
+      count: sorted.length
     });
   } catch (error) {
     console.error('Error fetching teachers:', error);
@@ -89,7 +89,7 @@ router.post('/teachers', async (req, res) => {
     if (!name?.trim() || !email?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'Name and Email are required',
+        error: 'Name and Email are required'
       });
     }
 
@@ -117,12 +117,12 @@ router.post('/teachers', async (req, res) => {
       schoolId: schoolId || '',     // ✅ Reference to school
       schoolCode,                   // ✅ Fetched from school table
       schoolName,                   // ✅ Fetched from school table
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
 
     const command = new PutCommand({
       TableName: TEACHER_TABLE,
-      Item: newTeacher,
+      Item: newTeacher
     });
 
     await ddbDocClient.send(command);
@@ -130,7 +130,7 @@ router.post('/teachers', async (req, res) => {
     res.status(201).json({
       success: true,
       data: newTeacher,
-      message: 'Teacher added successfully',
+      message: 'Teacher added successfully'
     });
   } catch (error) {
     console.error('Error adding teacher:', error);

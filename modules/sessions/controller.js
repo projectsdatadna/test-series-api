@@ -49,7 +49,7 @@ const hashToken = (token) => {
 // Extract device info from user agent
 const extractDeviceInfo = (userAgent) => {
   if (!userAgent) return 'Unknown Device';
-  
+
   let device = 'Desktop';
   let os = 'Unknown';
   let browser = 'Unknown';
@@ -80,9 +80,9 @@ const extractDeviceInfo = (userAgent) => {
 // Get IP address from event
 const getIpAddress = (event) => {
   if (event.headers) {
-    return event.headers['X-Forwarded-For'] || 
-           event.headers['x-forwarded-for'] || 
-           event.requestContext?.identity?.sourceIp || 
+    return event.headers['X-Forwarded-For'] ||
+           event.headers['x-forwarded-for'] ||
+           event.requestContext?.identity?.sourceIp ||
            'Unknown';
   }
   return 'Unknown';
@@ -123,21 +123,21 @@ async function login(event) {
       cognitoResponse = await cognito.initiateAuth(authParams).promise();
     } catch (cognitoError) {
       console.error('Cognito Auth Error:', cognitoError);
-      
+
       let message = 'Authentication failed';
       switch (cognitoError.code) {
-        case 'NotAuthorizedException':
-          message = 'Incorrect email or password';
-          break;
-        case 'UserNotConfirmedException':
-          message = 'User account not confirmed';
-          break;
-        case 'UserNotFoundException':
-          message = 'User not found';
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many attempts. Please try again later';
-          break;
+      case 'NotAuthorizedException':
+        message = 'Incorrect email or password';
+        break;
+      case 'UserNotConfirmedException':
+        message = 'User account not confirmed';
+        break;
+      case 'UserNotFoundException':
+        message = 'User not found';
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many attempts. Please try again later';
+        break;
       }
 
       return createResponse(401, {
@@ -185,7 +185,7 @@ async function login(event) {
     const accessToken = cognitoResponse.AuthenticationResult.AccessToken;
     const refreshToken = cognitoResponse.AuthenticationResult.RefreshToken;
     const idToken = cognitoResponse.AuthenticationResult.IdToken;
-    
+
     const tokenHash = hashToken(accessToken);
     const expiresIn = rememberMe ? 30 * 24 * 60 * 60 : SESSION_EXPIRY_HOURS * 60 * 60; // 30 days or configured hours
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
@@ -407,7 +407,7 @@ async function validateToken(event) {
 
     } catch (cognitoError) {
       console.error('Cognito Validation Error:', cognitoError);
-      
+
       // Mark session as inactive
       await dynamoDB.update({
         TableName: USER_SESSIONS_TABLE,
@@ -459,7 +459,7 @@ async function getActiveSessions(event) {
     }).promise();
 
     // Sort by last active (most recent first)
-    const sessions = result.Items.sort((a, b) => 
+    const sessions = result.Items.sort((a, b) =>
       new Date(b.last_active_at) - new Date(a.last_active_at)
     );
 
@@ -839,14 +839,14 @@ async function cleanupOldSessions(userId, keepCount = 5) {
       }
     }).promise();
 
-    const sessions = result.Items.sort((a, b) => 
+    const sessions = result.Items.sort((a, b) =>
       new Date(b.last_active_at) - new Date(a.last_active_at)
     );
 
     // Keep only the most recent sessions
     if (sessions.length > keepCount) {
       const sessionsToDeactivate = sessions.slice(keepCount);
-      
+
       for (const session of sessionsToDeactivate) {
         await dynamoDB.update({
           TableName: USER_SESSIONS_TABLE,

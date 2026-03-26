@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { JWSauthenticate } = require("../../components/JWTtoken");
 
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
   // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -340,7 +340,7 @@ async function updateRole(event) {
     // If role name is being updated, check for duplicates
     if (updates.roleName && updates.roleName !== existingRole.Item.role_name) {
       const normalizedRoleName = updates.roleName.toLowerCase().trim();
-      
+
       const duplicateCheck = await dynamoDB.query({
         TableName: ROLES_TABLE,
         IndexName: 'roleName-index',
@@ -574,19 +574,19 @@ async function updateRolePermissions(event) {
     let updatedPermissions;
 
     switch (action) {
-      case 'add':
-        // Add new permissions to existing ones
-        updatedPermissions = [...new Set([...existingRole.Item.permissions, ...permissions])];
-        break;
-      case 'remove':
-        // Remove specified permissions
-        updatedPermissions = existingRole.Item.permissions.filter(p => !permissions.includes(p));
-        break;
-      case 'replace':
-      default:
-        // Replace all permissions
-        updatedPermissions = permissions;
-        break;
+    case 'add':
+      // Add new permissions to existing ones
+      updatedPermissions = [...new Set([...existingRole.Item.permissions, ...permissions])];
+      break;
+    case 'remove':
+      // Remove specified permissions
+      updatedPermissions = existingRole.Item.permissions.filter(p => !permissions.includes(p));
+      break;
+    case 'replace':
+    default:
+      // Replace all permissions
+      updatedPermissions = permissions;
+      break;
     }
 
     const result = await dynamoDB.update({

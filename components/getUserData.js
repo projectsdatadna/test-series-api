@@ -6,7 +6,7 @@ const { JWSauthenticate } = require("./JWTtoken");
 
 // Configure AWS SDK
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
   // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -55,7 +55,7 @@ exports.jwsGetUserData = JWSauthenticate(async (event) => {
   try {
     const user = event.user;
     console.log('Fetching user data for:', user.username);
-    
+
     const body = JSON.parse(event.body || "{}");
     const { user_id } = body;
 
@@ -84,7 +84,7 @@ exports.jwsGetUserData = JWSauthenticate(async (event) => {
     const userParams = {
       UserPoolId: USER_POOL_ID,
       Username: session.email || session.phoneNumber
-    }
+    };
 
 
     const userResult = await cognito.adminGetUser(userParams).promise();

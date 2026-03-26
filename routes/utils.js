@@ -14,17 +14,17 @@ function addDebugRoutes(app) {
   app.get('/api/docs', (req, res) => {
     res.json(generateAPIDocumentation());
   });
-  
+
   // Route health check endpoint
   app.get('/api/health', (req, res) => {
     res.json(generateRouteHealthCheck());
   });
-  
+
   // List all endpoints
   app.get('/api/endpoints', (req, res) => {
     res.json(listAllEndpoints());
   });
-  
+
   // Route statistics
   app.get('/api/stats', (req, res) => {
     res.json({
@@ -57,18 +57,18 @@ function addDebugRoutes(app) {
 function validateRouteConfiguration() {
   const issues = [];
   const warnings = [];
-  
+
   // Check for common issues
   try {
     // Simulate route loading to catch import errors
     require('./index');
-    
+
     // Check if all expected modules exist
     const expectedModules = [
       'auth', 'users', 'roles', 'profiles', 'sessions',
       'courses', 'materials', 'exams', 'questions', 'claude-ai'
     ];
-    
+
     expectedModules.forEach(module => {
       try {
         require(`../modules/${module}/routes`);
@@ -76,11 +76,11 @@ function validateRouteConfiguration() {
         issues.push(`Module ${module} routes not found or has errors`);
       }
     });
-    
+
   } catch (error) {
     issues.push(`Route configuration error: ${error.message}`);
   }
-  
+
   return {
     isValid: issues.length === 0,
     issues,
@@ -132,7 +132,7 @@ function generateModuleDependencyMap() {
         dependents: ['profiles', 'enrollments', 'sessions']
       }
     },
-    
+
     crossModuleDependencies: {
       'materials → flashcards': 'Materials can have associated flashcards',
       'subjects → questions': 'Questions are categorized by subjects',
@@ -140,7 +140,7 @@ function generateModuleDependencyMap() {
       'users → enrollments': 'Users enroll in courses',
       'exams → results': 'Exams generate results'
     },
-    
+
     sharedComponents: [
       'JWTtoken - Authentication across all modules',
       'handler - Request/response wrapper',
@@ -163,7 +163,7 @@ function createTestingUtilities() {
       courses: 'GET /courses',
       materials: 'GET /materials'
     },
-    
+
     sampleRequests: {
       login: {
         method: 'POST',
@@ -173,9 +173,9 @@ function createTestingUtilities() {
           password: 'testpassword'
         }
       },
-      
+
       createUser: {
-        method: 'POST', 
+        method: 'POST',
         url: '/users',
         body: {
           firstName: 'Test',
@@ -183,7 +183,7 @@ function createTestingUtilities() {
           email: 'newuser@example.com'
         }
       },
-      
+
       getCourses: {
         method: 'GET',
         url: '/courses',
@@ -192,7 +192,7 @@ function createTestingUtilities() {
         }
       }
     },
-    
+
     testingNotes: [
       "All routes require proper JWT authentication except auth endpoints",
       "Use /hello endpoint to verify server is running",

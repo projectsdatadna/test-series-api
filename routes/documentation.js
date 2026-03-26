@@ -17,7 +17,7 @@ function generateAPIDocumentation() {
       description: "Fully modularized educational platform API with 31 specialized modules",
       architecture: "Modular Express.js with centralized route management"
     },
-    
+
     modules: {
       // Core Authentication & User Management
       auth: {
@@ -25,13 +25,13 @@ function generateAPIDocumentation() {
         description: "Authentication and authorization services",
         endpoints: [
           "POST /auth/email-signup",
-          "POST /auth/phone-signup", 
+          "POST /auth/phone-signup",
           "POST /auth/confirm-email",
           "POST /auth/email-login",
           "POST /auth/refresh-token"
         ]
       },
-      
+
       users: {
         basePath: "/users",
         description: "User management and profile operations",
@@ -43,7 +43,7 @@ function generateAPIDocumentation() {
           "DELETE /users/:userId"
         ]
       },
-      
+
       roles: {
         basePath: "/roles",
         description: "Role and permission management",
@@ -54,7 +54,7 @@ function generateAPIDocumentation() {
           "PUT /roles/:roleId/permissions"
         ]
       },
-      
+
       // Course Management
       courses: {
         basePath: "/courses",
@@ -67,7 +67,7 @@ function generateAPIDocumentation() {
           "GET /courses/:courseId/materials"
         ]
       },
-      
+
       enrollments: {
         basePath: "/enrollments",
         description: "Student course enrollment management",
@@ -77,7 +77,7 @@ function generateAPIDocumentation() {
           "PUT /enrollments/:enrollmentId/progress"
         ]
       },
-      
+
       // Content Management
       materials: {
         basePath: "/materials",
@@ -89,7 +89,7 @@ function generateAPIDocumentation() {
           "GET /materials/:materialId"
         ]
       },
-      
+
       // Exam System
       exams: {
         basePath: "/exams",
@@ -101,7 +101,7 @@ function generateAPIDocumentation() {
           "PUT /exams/:examId/publish"
         ]
       },
-      
+
       questions: {
         basePath: "/questions",
         description: "Question bank management",
@@ -112,7 +112,7 @@ function generateAPIDocumentation() {
           "GET /questions/:questionId"
         ]
       },
-      
+
       // AI Integration
       claudeAI: {
         basePath: "/",
@@ -124,13 +124,13 @@ function generateAPIDocumentation() {
         ]
       }
     },
-    
+
     routePatterns: {
       standardRESTful: {
         description: "Standard RESTful patterns with resource-based URLs",
         examples: ["/users", "/courses", "/materials", "/exams"]
       },
-      
+
       nestedResources: {
         description: "Nested resource relationships",
         examples: [
@@ -139,7 +139,7 @@ function generateAPIDocumentation() {
           "/exams/:examId/questions"
         ]
       },
-      
+
       actionBasedRoutes: {
         description: "Action-specific endpoints",
         examples: [
@@ -148,7 +148,7 @@ function generateAPIDocumentation() {
           "/results/generate"
         ]
       },
-      
+
       crossModuleRoutes: {
         description: "Routes that span multiple modules",
         examples: [
@@ -157,7 +157,7 @@ function generateAPIDocumentation() {
         ]
       }
     },
-    
+
     authenticationPatterns: {
       public: ["POST /auth/email-login", "POST /auth/email-signup"],
       authenticated: ["Most endpoints require JWT authentication"],
@@ -172,22 +172,22 @@ function generateAPIDocumentation() {
  */
 function generateRouteHealthCheck() {
   const summary = getRouteSummary();
-  
+
   return {
     status: "healthy",
     totalModules: summary.totalModules,
     moduleCategories: Object.keys(summary.categories).length,
     routeRegistrationStatus: "all routes successfully registered",
     lastUpdated: new Date().toISOString(),
-    
+
     moduleStatus: {
       core: "✅ All core modules (auth, users, roles) operational",
-      content: "✅ All content modules (materials, courses) operational", 
+      content: "✅ All content modules (materials, courses) operational",
       exams: "✅ All exam modules (exams, questions, answers) operational",
       ai: "✅ Claude AI integration module operational",
       analytics: "✅ All analytics modules operational"
     },
-    
+
     recommendations: [
       "All modules are properly organized and functional",
       "Route registration is centralized and maintainable",
@@ -206,31 +206,31 @@ function listAllEndpoints() {
     coreModules: {
       authentication: [
         "POST /auth/email-signup",
-        "POST /auth/phone-signup", 
+        "POST /auth/phone-signup",
         "POST /auth/confirm-email",
         "POST /auth/email-login",
         "POST /auth/refresh-token",
         "POST /auth/reset/password-email"
       ],
-      
+
       userManagement: [
         "GET /users",
-        "POST /users", 
+        "POST /users",
         "GET /users/:userId",
         "PUT /users/:userId",
         "DELETE /users/:userId",
         "GET /users/:userId/enrollments"
       ],
-      
+
       roleManagement: [
         "GET /roles",
         "POST /roles",
-        "GET /roles/:roleId", 
+        "GET /roles/:roleId",
         "PUT /roles/:roleId",
         "GET /roles/:roleId/permissions"
       ]
     },
-    
+
     contentModules: {
       courseManagement: [
         "GET /courses",
@@ -239,15 +239,15 @@ function listAllEndpoints() {
         "PUT /courses/:courseId",
         "GET /courses/:courseId/materials"
       ],
-      
+
       materialManagement: [
         "GET /materials",
         "POST /materials",
-        "GET /materials/search", 
+        "GET /materials/search",
         "GET /materials/:materialId",
         "PUT /materials/:materialId"
       ],
-      
+
       hierarchyManagement: [
         "GET /standards",
         "POST /standards",
@@ -257,7 +257,7 @@ function listAllEndpoints() {
         "POST /chapters"
       ]
     },
-    
+
     examModules: {
       examManagement: [
         "GET /exams",
@@ -266,15 +266,15 @@ function listAllEndpoints() {
         "PUT /exams/:examId/publish",
         "GET /exams/active"
       ],
-      
+
       questionManagement: [
-        "GET /questions", 
+        "GET /questions",
         "POST /questions",
         "GET /questions/search",
         "GET /questions/:questionId",
         "POST /questions/:questionId/options"
       ],
-      
+
       answerManagement: [
         "POST /exams/:examId/start",
         "POST /exams/:examId/questions/:questionId/answer",
@@ -282,11 +282,11 @@ function listAllEndpoints() {
         "POST /exams/:examId/submit"
       ]
     },
-    
+
     aiIntegration: {
       claudeAI: [
         "POST /teacher/upload-to-claude",
-        "POST /teacher/analyze", 
+        "POST /teacher/analyze",
         "POST /teacher/generate-content",
         "POST /file/teacher/upload-to-claude",
         "POST /file/teacher/analyze"

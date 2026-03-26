@@ -31,9 +31,9 @@ const createResponse = (statusCode, body) => {
 // Get IP address from event
 const getIpAddress = (event) => {
   if (event.headers) {
-    return event.headers['X-Forwarded-For'] || 
-           event.headers['x-forwarded-for'] || 
-           event.requestContext?.identity?.sourceIp || 
+    return event.headers['X-Forwarded-For'] ||
+           event.headers['x-forwarded-for'] ||
+           event.requestContext?.identity?.sourceIp ||
            'Unknown';
   }
   return 'Unknown';
@@ -42,8 +42,8 @@ const getIpAddress = (event) => {
 // Get user agent from event
 const getUserAgent = (event) => {
   if (event.headers) {
-    return event.headers['User-Agent'] || 
-           event.headers['user-agent'] || 
+    return event.headers['User-Agent'] ||
+           event.headers['user-agent'] ||
            'Unknown';
   }
   return 'Unknown';
@@ -51,8 +51,8 @@ const getUserAgent = (event) => {
 
 // Valid modules
 const VALID_MODULES = [
-  'User', 'Role', 'Profile', 'Session', 'Course', 'Subject', 
-  'Category', 'Material', 'Quiz', 'Assignment', 'Grade', 
+  'User', 'Role', 'Profile', 'Session', 'Course', 'Subject',
+  'Category', 'Material', 'Quiz', 'Assignment', 'Grade',
   'Enrollment', 'Authentication', 'System', 'Settings'
 ];
 
@@ -230,7 +230,7 @@ async function getAllLogs(event) {
     const result = await dynamoDB.scan(params).promise();
 
     // Sort by timestamp (most recent first)
-    const sortedLogs = result.Items.sort((a, b) => 
+    const sortedLogs = result.Items.sort((a, b) =>
       new Date(b.timestamp) - new Date(a.timestamp)
     );
 
@@ -589,7 +589,7 @@ async function getLogsByAction(event) {
     const result = await dynamoDB.scan(params).promise();
 
     // Sort by timestamp (most recent first)
-    const sortedLogs = result.Items.sort((a, b) => 
+    const sortedLogs = result.Items.sort((a, b) =>
       new Date(b.timestamp) - new Date(a.timestamp)
     );
 
@@ -747,7 +747,7 @@ async function deleteOldLogs(event) {
     const batchSize = 25;
     for (let i = 0; i < result.Items.length; i += batchSize) {
       const batch = result.Items.slice(i, i + batchSize);
-      
+
       const deleteRequests = batch.map(item => ({
         DeleteRequest: {
           Key: { log_id: item.log_id }
@@ -826,17 +826,17 @@ async function exportLogs(event) {
     }
 
     const result = await dynamoDB.scan(params).promise();
-    const logs = result.Items.sort((a, b) => 
+    const logs = result.Items.sort((a, b) =>
       new Date(b.timestamp) - new Date(a.timestamp)
     );
 
     if (format === 'csv') {
       // Convert to CSV
       const csvHeaders = 'Log ID,User ID,Action,Module,Status,IP Address,Timestamp\n';
-      const csvRows = logs.map(log => 
+      const csvRows = logs.map(log =>
         `${log.log_id},${log.user_id},${log.action},${log.module},${log.status},${log.ip_address},${log.timestamp}`
       ).join('\n');
-      
+
       const csv = csvHeaders + csvRows;
 
       return {

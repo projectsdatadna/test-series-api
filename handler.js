@@ -6,6 +6,6 @@ exports.hello = async (event) => {
       method: event.requestContext.http.method,
       path: event.rawPath,
       timestamp: new Date().toISOString()
-    }),
+    })
   };
 };

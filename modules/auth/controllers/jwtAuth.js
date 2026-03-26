@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 // Configure AWS SDK
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
   // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -39,7 +39,7 @@ try {
   verifier = CognitoJwtVerifier.create({
     userPoolId: USER_POOL_ID,
     tokenUse: 'access',
-    clientId: CLIENT_ID,
+    clientId: CLIENT_ID
   });
 } catch (error) {
   console.error('[JWT AUTH] Failed to create verifier:', error.message);
@@ -113,7 +113,7 @@ async function jwtLoginEmail (event) {
 
     // Extract JWT tokens from Cognito response
     const tokens = authResult.AuthenticationResult;
-    
+
     if (!tokens) {
       return createResponse(401, {
         success: false,
@@ -144,12 +144,12 @@ async function jwtLoginEmail (event) {
     try {
       const sessionsTable = process.env.SESSIONS_TABLE || 'TestUserSessions';
       console.log(`[EMAIL LOGIN] Fetching user from SESSIONS_TABLE: ${sessionsTable}, userId: ${userId}`);
-      
+
       const userResult = await dynamoDB.get({
         TableName: sessionsTable,
         Key: { user_id: userId }
       }).promise();
-      
+
       completeUserData = userResult.Item || null;
       console.log('[EMAIL LOGIN] User data fetched from SESSIONS_TABLE:', completeUserData ? 'Found' : 'Not found');
     } catch (dbError) {
@@ -211,7 +211,7 @@ async function jwtLoginEmail (event) {
         refresh_token: tokens.RefreshToken,
         token_type: 'Bearer',
         expires_in: 86400,
-        
+
         // Token expiration info
         access_token_expires_at: accessTokenExpiry,
         id_token_expires_at: idTokenExpiry,
@@ -222,7 +222,7 @@ async function jwtLoginEmail (event) {
           id_token_days: 1,
           refresh_token_days: 365
         },
-        
+
         // Complete user information from SESSIONS_TABLE
         user: completeUserData ? {
           user_id: userId,
@@ -249,7 +249,7 @@ async function jwtLoginEmail (event) {
           username: userName,
           role_id: roleId
         },
-        
+
         // Session info (optional, for tracking)
         session: {
           session_id: sessionId,
@@ -265,28 +265,28 @@ async function jwtLoginEmail (event) {
     let statusCode = 401;
 
     switch (error.code) {
-      case 'NotAuthorizedException':
-        message = 'Invalid email or password';
-        break;
-      case 'UserNotConfirmedException':
-        message = 'Please verify your email before logging in';
-        statusCode = 403;
-        break;
-      case 'UserNotFoundException':
-        message = 'User not found';
-        statusCode = 404;
-        break;
-      case 'InvalidParameterException':
-        message = 'Invalid parameters provided';
-        statusCode = 400;
-        break;
-      case 'TooManyRequestsException':
-        message = 'Too many login attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        statusCode = 500;
-        break;
+    case 'NotAuthorizedException':
+      message = 'Invalid email or password';
+      break;
+    case 'UserNotConfirmedException':
+      message = 'Please verify your email before logging in';
+      statusCode = 403;
+      break;
+    case 'UserNotFoundException':
+      message = 'User not found';
+      statusCode = 404;
+      break;
+    case 'InvalidParameterException':
+      message = 'Invalid parameters provided';
+      statusCode = 400;
+      break;
+    case 'TooManyRequestsException':
+      message = 'Too many login attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -295,7 +295,7 @@ async function jwtLoginEmail (event) {
       error: error.message
     });
   }
-};
+}
 
 
 
@@ -348,7 +348,7 @@ async function jwtLoginPhone (event) {
 
     // Extract JWT tokens from Cognito response
     const tokens = authResult.AuthenticationResult;
-    
+
     if (!tokens) {
       return createResponse(401, {
         success: false,
@@ -380,12 +380,12 @@ async function jwtLoginPhone (event) {
     try {
       const sessionsTable = process.env.SESSIONS_TABLE || 'TestUserSessions';
       console.log(`[PHONE LOGIN] Fetching user from SESSIONS_TABLE: ${sessionsTable}, userId: ${userId}`);
-      
+
       const userResult = await dynamoDB.get({
         TableName: sessionsTable,
         Key: { user_id: userId }
       }).promise();
-      
+
       completeUserData = userResult.Item || null;
       console.log('[PHONE LOGIN] User data fetched from SESSIONS_TABLE:', completeUserData ? 'Found' : 'Not found');
     } catch (dbError) {
@@ -448,7 +448,7 @@ async function jwtLoginPhone (event) {
         refresh_token: tokens.RefreshToken,
         token_type: 'Bearer',
         expires_in: tokens.ExpiresIn,
-        
+
         // Token expiration info
         access_token_expires_at: accessTokenExpiry,
         id_token_expires_at: idTokenExpiry,
@@ -459,7 +459,7 @@ async function jwtLoginPhone (event) {
           id_token_hours: Math.floor(tokens.ExpiresIn / 3600),
           refresh_token_days: 365
         },
-        
+
         // Complete user information from SESSIONS_TABLE
         user: completeUserData ? {
           user_id: userId,
@@ -487,7 +487,7 @@ async function jwtLoginPhone (event) {
           username: userName,
           sub: userId
         },
-        
+
         // Session info (optional, for tracking)
         session: {
           session_id: sessionId,
@@ -503,28 +503,28 @@ async function jwtLoginPhone (event) {
     let statusCode = 401;
 
     switch (error.code) {
-      case 'NotAuthorizedException':
-        message = 'Invalid phone number or password';
-        break;
-      case 'UserNotConfirmedException':
-        message = 'Please verify your phone number before logging in';
-        statusCode = 403;
-        break;
-      case 'UserNotFoundException':
-        message = 'User not found';
-        statusCode = 404;
-        break;
-      case 'InvalidParameterException':
-        message = 'Invalid parameters provided';
-        statusCode = 400;
-        break;
-      case 'TooManyRequestsException':
-        message = 'Too many login attempts. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        statusCode = 500;
-        break;
+    case 'NotAuthorizedException':
+      message = 'Invalid phone number or password';
+      break;
+    case 'UserNotConfirmedException':
+      message = 'Please verify your phone number before logging in';
+      statusCode = 403;
+      break;
+    case 'UserNotFoundException':
+      message = 'User not found';
+      statusCode = 404;
+      break;
+    case 'InvalidParameterException':
+      message = 'Invalid parameters provided';
+      statusCode = 400;
+      break;
+    case 'TooManyRequestsException':
+      message = 'Too many login attempts. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -533,7 +533,7 @@ async function jwtLoginPhone (event) {
       error: error.message
     });
   }
-};
+}
 
 
 async function refreshToken(event) {
@@ -612,14 +612,14 @@ async function jwtEmailLogout (event) {
     const getUserParams = {
       UserPoolId: USER_POOL_ID,
       Username: email
-    }
+    };
     await cognito.adminGetUser(getUserParams).promise();
 
     const signOutParams = {
       UserPoolId: USER_POOL_ID,
       Username: email
     };
-   
+
     await cognito.adminUserGlobalSignOut(signOutParams).promise();
 
     return createResponse(200, {
@@ -632,19 +632,19 @@ async function jwtEmailLogout (event) {
 
     let message = 'Failed to logout';
     let statusCode = 500;
-    switch (error.code) {
-      case 'UserNotFoundException':
-        message = 'User not found';
-        statusCode = 404;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Operation not authorized';
-        statusCode = 403;
-        break;
-      default:
-        message = 'Failed to logout';
-        statusCode = 500;
-        break;
+    switch (error.code) {
+    case 'UserNotFoundException':
+      message = 'User not found';
+      statusCode = 404;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Operation not authorized';
+      statusCode = 403;
+      break;
+    default:
+      message = 'Failed to logout';
+      statusCode = 500;
+      break;
     }
     return createResponse(statusCode, {
       success: false,
@@ -652,7 +652,7 @@ async function jwtEmailLogout (event) {
       error: error.message
     });
   }
-};
+}
 
 async function jwtPhoneLogout (event) {
   try {
@@ -672,14 +672,14 @@ async function jwtPhoneLogout (event) {
       UserPoolId: USER_POOL_ID,
       Username: formattedPhone
     };
-    
+
     await cognito.adminGetUser(getUserParams).promise();
 
     const signOutParams = {
       UserPoolId: USER_POOL_ID,
       Username: formattedPhone
     };
-   
+
     await cognito.adminUserGlobalSignOut(signOutParams).promise();
 
     return createResponse(200, {
@@ -692,185 +692,185 @@ async function jwtPhoneLogout (event) {
 
     let message = 'Failed to logout';
     let statusCode = 500;
-    
+
     switch (error.code) {
-      case 'UserNotFoundException':
-        message = 'User not found';
-        statusCode = 404;
-        break;
-      case 'NotAuthorizedException':
-        message = 'Operation not authorized';
-        statusCode = 403;
-        break;
-      default:
-        message = 'Failed to logout';
-        statusCode = 500;
-        break;
+    case 'UserNotFoundException':
+      message = 'User not found';
+      statusCode = 404;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Operation not authorized';
+      statusCode = 403;
+      break;
+    default:
+      message = 'Failed to logout';
+      statusCode = 500;
+      break;
     }
-    
+
     return createResponse(statusCode, {
       success: false,
       message: message,
       error: error.message
     });
   }
-};
+}
 
 
 // email reset password
 async function jwtResetPasswordEmail(event) {
-    try {
-        if (!event || !event.body) {
-            return createResponse(400, {
-                success: false,
-                message: 'Request body is required'
-            });
-        }
-
-        const {
-            email,
-            newPassword
-        } = JSON.parse(event.body);
-
-        if (!email || !newPassword) {
-            return createResponse(400, {
-                success: false,
-                message: 'email and newPassword are required'
-            });
-        }
-
-        if (!process.env.USER_POOL_ID) {
-            console.error('Missing USER_POOL_ID environment variable');
-            return createResponse(500, {
-                success: false,
-                message: 'Server configuration error'
-            });
-        }
-
-        const params = {
-            UserPoolId: process.env.USER_POOL_ID,
-            Username: email,
-            Password: newPassword,
-            Permanent: false
-        };
-
-        await cognito.adminSetUserPassword(params);
-
-        return createResponse(200, {
-            success: true,
-            message: 'Password has been reset successfully. The user will be required to create a new one on their next login.'
-        });
-
-    } catch (error) {
-        console.error('AdminResetPassword Error:', error);
-
-        let message = 'Failed to reset password.';
-        let statusCode = 500;
-
-        switch (error.code) {
-            case 'InvalidPasswordException':
-                message = 'Password does not meet security requirements.';
-                statusCode = 400;
-                break;
-            case 'UserNotFoundException':
-                message = 'The provided email is not valid.';
-                statusCode = 400;
-                break;
-            case 'NotAuthorizedException':
-                message = 'Not authorized to perform this administrative action.';
-                statusCode = 403;
-                break;
-            default:
-                message = 'Failed to reset password.';
-                statusCode = 500;
-                break;
-        }
-
-        return createResponse(statusCode, {
-            success: false,
-            message: message,
-            error: error.message
-        });
+  try {
+    if (!event || !event.body) {
+      return createResponse(400, {
+        success: false,
+        message: 'Request body is required'
+      });
     }
-};
+
+    const {
+      email,
+      newPassword
+    } = JSON.parse(event.body);
+
+    if (!email || !newPassword) {
+      return createResponse(400, {
+        success: false,
+        message: 'email and newPassword are required'
+      });
+    }
+
+    if (!process.env.USER_POOL_ID) {
+      console.error('Missing USER_POOL_ID environment variable');
+      return createResponse(500, {
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const params = {
+      UserPoolId: process.env.USER_POOL_ID,
+      Username: email,
+      Password: newPassword,
+      Permanent: false
+    };
+
+    await cognito.adminSetUserPassword(params);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Password has been reset successfully. The user will be required to create a new one on their next login.'
+    });
+
+  } catch (error) {
+    console.error('AdminResetPassword Error:', error);
+
+    let message = 'Failed to reset password.';
+    let statusCode = 500;
+
+    switch (error.code) {
+    case 'InvalidPasswordException':
+      message = 'Password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'The provided email is not valid.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Not authorized to perform this administrative action.';
+      statusCode = 403;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
+    }
+
+    return createResponse(statusCode, {
+      success: false,
+      message: message,
+      error: error.message
+    });
+  }
+}
 
 
 // Admin Reset Password for Phone Number
 async function jwtResetPasswordPhone (event) {
-    try {
-        if (!event || !event.body) {
-            return createResponse(400, {
-                success: false,
-                message: 'Request body is required'
-            });
-        }
-
-        const { phoneNumber, newPassword } = JSON.parse(event.body);
-
-        if (!phoneNumber || !newPassword) {
-            return createResponse(400, {
-                success: false,
-                message: 'phoneNumber and newPassword are required'
-            });
-        }
-
-        if (!process.env.USER_POOL_ID) {
-            console.error('Missing USER_POOL_ID environment variable');
-            return createResponse(500, {
-                success: false,
-                message: 'Server configuration error'
-            });
-        }
-
-        // Format phone number to E.164 format
-        const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-
-        const params = {
-            UserPoolId: process.env.USER_POOL_ID,
-            Username: formattedPhone,
-            Password: newPassword,
-            Permanent: false // User must change on next login
-        };
-
-        await cognito.adminSetUserPassword(params).promise();
-
-        return createResponse(200, {
-            success: true,
-            message: 'Password has been reset successfully. The user will be required to create a new one on their next login.'
-        });
-
-    } catch (error) {
-        console.error('AdminResetPassword Phone Error:', error);
-
-        let message = 'Failed to reset password.';
-        let statusCode = 500;
-
-        switch (error.code) {
-            case 'InvalidPasswordException':
-                message = 'Password does not meet security requirements.';
-                statusCode = 400;
-                break;
-            case 'UserNotFoundException':
-                message = 'The provided phone number is not valid.';
-                statusCode = 400;
-                break;
-            case 'NotAuthorizedException':
-                message = 'Not authorized to perform this administrative action.';
-                statusCode = 403;
-                break;
-            default:
-                message = 'Failed to reset password.';
-                statusCode = 500;
-                break;
-        }
-
-        return createResponse(statusCode, {
-            success: false,
-            message: message,
-            error: error.message
-        });
+  try {
+    if (!event || !event.body) {
+      return createResponse(400, {
+        success: false,
+        message: 'Request body is required'
+      });
     }
-};
+
+    const { phoneNumber, newPassword } = JSON.parse(event.body);
+
+    if (!phoneNumber || !newPassword) {
+      return createResponse(400, {
+        success: false,
+        message: 'phoneNumber and newPassword are required'
+      });
+    }
+
+    if (!process.env.USER_POOL_ID) {
+      console.error('Missing USER_POOL_ID environment variable');
+      return createResponse(500, {
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Format phone number to E.164 format
+    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+
+    const params = {
+      UserPoolId: process.env.USER_POOL_ID,
+      Username: formattedPhone,
+      Password: newPassword,
+      Permanent: false // User must change on next login
+    };
+
+    await cognito.adminSetUserPassword(params).promise();
+
+    return createResponse(200, {
+      success: true,
+      message: 'Password has been reset successfully. The user will be required to create a new one on their next login.'
+    });
+
+  } catch (error) {
+    console.error('AdminResetPassword Phone Error:', error);
+
+    let message = 'Failed to reset password.';
+    let statusCode = 500;
+
+    switch (error.code) {
+    case 'InvalidPasswordException':
+      message = 'Password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'The provided phone number is not valid.';
+      statusCode = 400;
+      break;
+    case 'NotAuthorizedException':
+      message = 'Not authorized to perform this administrative action.';
+      statusCode = 403;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
+    }
+
+    return createResponse(statusCode, {
+      success: false,
+      message: message,
+      error: error.message
+    });
+  }
+}
 
 // resend confirmation code
 
@@ -909,7 +909,7 @@ async function jwtResendConfirmationCode (event) {
     // First, check if user exists and get their status
     let userExists = false;
     let userConfirmed = false;
-    
+
     try {
       const getUserParams = {
         UserPoolId: USER_POOL_ID,
@@ -919,7 +919,7 @@ async function jwtResendConfirmationCode (event) {
       const userDetails = await cognito.adminGetUser(getUserParams).promise();
       userExists = true;
       userConfirmed = userDetails.UserStatus === 'CONFIRMED';
-      
+
       console.log('User found:', {
         username: email,
         status: userDetails.UserStatus,
@@ -928,14 +928,14 @@ async function jwtResendConfirmationCode (event) {
 
     } catch (getUserError) {
       console.error('Get User Error:', getUserError);
-      
+
       if (getUserError.code === 'UserNotFoundException') {
         return createResponse(404, {
           success: false,
           message: 'No account found with this email address. Please sign up first.'
         });
       }
-      
+
       // Handle other errors
       return createResponse(500, {
         success: false,
@@ -961,7 +961,7 @@ async function jwtResendConfirmationCode (event) {
 
     try {
       await cognito.resendConfirmationCode(resendParams).promise();
-      
+
       console.log('Confirmation code resent successfully for:', email);
 
       return createResponse(200, {
@@ -975,38 +975,38 @@ async function jwtResendConfirmationCode (event) {
 
     } catch (resendError) {
       console.error('Resend Confirmation Code Error:', resendError);
-      
+
       let message = 'Failed to resend confirmation code';
       let statusCode = 500;
 
       switch (resendError.code) {
-        case 'UserNotFoundException':
-          message = 'No account found with this email address';
-          statusCode = 404;
-          break;
-        case 'InvalidParameterException':
-          message = 'Invalid email address provided';
-          statusCode = 400;
-          break;
-        case 'LimitExceededException':
-          message = 'Too many requests. Please wait before requesting another code.';
-          statusCode = 429;
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many requests. Please try again later.';
-          statusCode = 429;
-          break;
-        case 'NotAuthorizedException':
-          message = 'Unable to resend confirmation code. Please contact support.';
-          statusCode = 403;
-          break;
-        case 'CodeDeliveryFailureException':
-          message = 'Failed to deliver confirmation code. Please check your email address.';
-          statusCode = 502;
-          break;
-        default:
-          message = 'Failed to resend confirmation code';
-          statusCode = 500;
+      case 'UserNotFoundException':
+        message = 'No account found with this email address';
+        statusCode = 404;
+        break;
+      case 'InvalidParameterException':
+        message = 'Invalid email address provided';
+        statusCode = 400;
+        break;
+      case 'LimitExceededException':
+        message = 'Too many requests. Please wait before requesting another code.';
+        statusCode = 429;
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many requests. Please try again later.';
+        statusCode = 429;
+        break;
+      case 'NotAuthorizedException':
+        message = 'Unable to resend confirmation code. Please contact support.';
+        statusCode = 403;
+        break;
+      case 'CodeDeliveryFailureException':
+        message = 'Failed to deliver confirmation code. Please check your email address.';
+        statusCode = 502;
+        break;
+      default:
+        message = 'Failed to resend confirmation code';
+        statusCode = 500;
       }
 
       return createResponse(statusCode, {
@@ -1018,14 +1018,14 @@ async function jwtResendConfirmationCode (event) {
 
   } catch (error) {
     console.error('Resend Confirmation Code Function Errors:', error);
-    
+
     return createResponse(500, {
       success: false,
       message: 'Internal server error',
       error: error.message
     });
   }
-};
+}
 
 // Resend Confirmation Code for Phone Number (SMS)
 async function jwtResendConfirmationCodePhone (event) {
@@ -1066,7 +1066,7 @@ async function jwtResendConfirmationCodePhone (event) {
     // First, check if user exists and get their status
     let userExists = false;
     let userConfirmed = false;
-    
+
     try {
       const getUserParams = {
         UserPoolId: USER_POOL_ID,
@@ -1076,7 +1076,7 @@ async function jwtResendConfirmationCodePhone (event) {
       const userDetails = await cognito.adminGetUser(getUserParams).promise();
       userExists = true;
       userConfirmed = userDetails.UserStatus === 'CONFIRMED';
-      
+
       console.log('User found:', {
         username: formattedPhone,
         status: userDetails.UserStatus,
@@ -1085,14 +1085,14 @@ async function jwtResendConfirmationCodePhone (event) {
 
     } catch (getUserError) {
       console.error('Get User Error:', getUserError);
-      
+
       if (getUserError.code === 'UserNotFoundException') {
         return createResponse(404, {
           success: false,
           message: 'No account found with this phone number. Please sign up first.'
         });
       }
-      
+
       // Handle other errors
       return createResponse(500, {
         success: false,
@@ -1118,7 +1118,7 @@ async function jwtResendConfirmationCodePhone (event) {
 
     try {
       const result = await cognito.resendConfirmationCode(resendParams).promise();
-      
+
       console.log('Confirmation code resent successfully for:', formattedPhone);
       console.log('Delivery medium:', result.CodeDeliveryDetails?.DeliveryMedium);
 
@@ -1135,46 +1135,46 @@ async function jwtResendConfirmationCodePhone (event) {
 
     } catch (resendError) {
       console.error('Resend Confirmation Code Phone Error:', resendError);
-      
+
       let message = 'Failed to resend confirmation code';
       let statusCode = 500;
 
       switch (resendError.code) {
-        case 'UserNotFoundException':
-          message = 'No account found with this phone number';
-          statusCode = 404;
-          break;
-        case 'InvalidParameterException':
-          message = 'Invalid phone number provided. Ensure it is in E.164 format (e.g., +916382490453)';
-          statusCode = 400;
-          break;
-        case 'LimitExceededException':
-          message = 'Too many requests. Please wait before requesting another code.';
-          statusCode = 429;
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many requests. Please try again later.';
-          statusCode = 429;
-          break;
-        case 'NotAuthorizedException':
-          message = 'Unable to resend confirmation code. Please contact support.';
-          statusCode = 403;
-          break;
-        case 'CodeDeliveryFailureException':
-          message = 'Failed to deliver SMS confirmation code. Please verify your phone number is correct and can receive SMS.';
-          statusCode = 502;
-          break;
-        case 'InvalidSmsRoleAccessPolicyException':
-          message = 'SMS service is not properly configured. Please contact administrator.';
-          statusCode = 500;
-          break;
-        case 'InvalidSmsRoleTrustRelationshipException':
-          message = 'SMS service configuration error. Please contact administrator.';
-          statusCode = 500;
-          break;
-        default:
-          message = 'Failed to resend confirmation code';
-          statusCode = 500;
+      case 'UserNotFoundException':
+        message = 'No account found with this phone number';
+        statusCode = 404;
+        break;
+      case 'InvalidParameterException':
+        message = 'Invalid phone number provided. Ensure it is in E.164 format (e.g., +916382490453)';
+        statusCode = 400;
+        break;
+      case 'LimitExceededException':
+        message = 'Too many requests. Please wait before requesting another code.';
+        statusCode = 429;
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many requests. Please try again later.';
+        statusCode = 429;
+        break;
+      case 'NotAuthorizedException':
+        message = 'Unable to resend confirmation code. Please contact support.';
+        statusCode = 403;
+        break;
+      case 'CodeDeliveryFailureException':
+        message = 'Failed to deliver SMS confirmation code. Please verify your phone number is correct and can receive SMS.';
+        statusCode = 502;
+        break;
+      case 'InvalidSmsRoleAccessPolicyException':
+        message = 'SMS service is not properly configured. Please contact administrator.';
+        statusCode = 500;
+        break;
+      case 'InvalidSmsRoleTrustRelationshipException':
+        message = 'SMS service configuration error. Please contact administrator.';
+        statusCode = 500;
+        break;
+      default:
+        message = 'Failed to resend confirmation code';
+        statusCode = 500;
       }
 
       return createResponse(statusCode, {
@@ -1186,14 +1186,14 @@ async function jwtResendConfirmationCodePhone (event) {
 
   } catch (error) {
     console.error('Resend Confirmation Code Phone Function Error:', error);
-    
+
     return createResponse(500, {
       success: false,
       message: 'Internal server error',
       error: error.message
     });
   }
-};
+}
 
 
 async function jwtResendPhoneAttributeVerification(event) {
@@ -1223,7 +1223,7 @@ async function jwtResendPhoneAttributeVerification(event) {
 
     try {
       const result = await cognito.getUserAttributeVerificationCode(params).promise();
-      
+
       console.log('Phone verification code resent for attribute update');
 
       return createResponse(200, {
@@ -1238,34 +1238,34 @@ async function jwtResendPhoneAttributeVerification(event) {
 
     } catch (error) {
       console.error('Resend Phone Attribute Verification Error:', error);
-      
+
       let message = 'Failed to send verification code';
       let statusCode = 500;
 
       switch (error.code) {
-        case 'NotAuthorizedException':
-          message = 'Invalid or expired access token. Please login again.';
-          statusCode = 401;
-          break;
-        case 'LimitExceededException':
-          message = 'Too many requests. Please wait before requesting another code.';
-          statusCode = 429;
-          break;
-        case 'TooManyRequestsException':
-          message = 'Too many requests. Please try again later.';
-          statusCode = 429;
-          break;
-        case 'InvalidParameterException':
-          message = 'Invalid parameters. Phone number may not be set for this user.';
-          statusCode = 400;
-          break;
-        case 'CodeDeliveryFailureException':
-          message = 'Failed to deliver SMS verification code.';
-          statusCode = 502;
-          break;
-        default:
-          message = 'Failed to send verification code';
-          statusCode = 500;
+      case 'NotAuthorizedException':
+        message = 'Invalid or expired access token. Please login again.';
+        statusCode = 401;
+        break;
+      case 'LimitExceededException':
+        message = 'Too many requests. Please wait before requesting another code.';
+        statusCode = 429;
+        break;
+      case 'TooManyRequestsException':
+        message = 'Too many requests. Please try again later.';
+        statusCode = 429;
+        break;
+      case 'InvalidParameterException':
+        message = 'Invalid parameters. Phone number may not be set for this user.';
+        statusCode = 400;
+        break;
+      case 'CodeDeliveryFailureException':
+        message = 'Failed to deliver SMS verification code.';
+        statusCode = 502;
+        break;
+      default:
+        message = 'Failed to send verification code';
+        statusCode = 500;
       }
 
       return createResponse(statusCode, {
@@ -1277,14 +1277,14 @@ async function jwtResendPhoneAttributeVerification(event) {
 
   } catch (error) {
     console.error('Resend Phone Attribute Verification Function Error:', error);
-    
+
     return createResponse(500, {
       success: false,
       message: 'Internal server error',
       error: error.message
     });
   }
-};
+}
 
 async function jwtResetPasswordWithOld (event) {
   try {
@@ -1310,8 +1310,8 @@ async function jwtResetPasswordWithOld (event) {
       AuthParameters: {
         USERNAME: email,
         PASSWORD: oldPassword,
-        SECRET_HASH: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET),
-      },
+        SECRET_HASH: generateSecretHash(email, CLIENT_ID, CLIENT_SECRET)
+      }
     };
 
     const authResponse = await cognito.initiateAuth(authParams).promise();
@@ -1322,7 +1322,7 @@ async function jwtResetPasswordWithOld (event) {
     const changePasswordParams = {
       PreviousPassword: oldPassword,
       ProposedPassword: newPassword,
-      AccessToken: accessToken,
+      AccessToken: accessToken
     };
 
     await cognito.changePassword(changePasswordParams).promise();
@@ -1339,27 +1339,27 @@ async function jwtResetPasswordWithOld (event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'NotAuthorizedException':
-        message = 'Old password is incorrect or user not authorized.';
-        statusCode = 403;
-        break;
-      case 'InvalidPasswordException':
-        message = 'New password does not meet security requirements.';
-        statusCode = 400;
-        break;
-      case 'UserNotFoundException':
-        message = 'User does not exist.';
-        statusCode = 404;
-        break;
-      case 'LimitExceededException':
-      case 'TooManyRequestsException':
-        message = 'Too many requests. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to reset password.';
-        statusCode = 500;
-        break;
+    case 'NotAuthorizedException':
+      message = 'Old password is incorrect or user not authorized.';
+      statusCode = 403;
+      break;
+    case 'InvalidPasswordException':
+      message = 'New password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'User does not exist.';
+      statusCode = 404;
+      break;
+    case 'LimitExceededException':
+    case 'TooManyRequestsException':
+      message = 'Too many requests. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -1368,7 +1368,7 @@ async function jwtResetPasswordWithOld (event) {
       error: error.message
     });
   }
-};
+}
 
 async function jwtResetPasswordWithOldPhone (event) {
   try {
@@ -1400,8 +1400,8 @@ async function jwtResetPasswordWithOldPhone (event) {
       AuthParameters: {
         USERNAME: formattedPhone,
         PASSWORD: oldPassword,
-        SECRET_HASH: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET),
-      },
+        SECRET_HASH: generateSecretHash(formattedPhone, CLIENT_ID, CLIENT_SECRET)
+      }
     };
 
     const authResponse = await cognito.initiateAuth(authParams).promise();
@@ -1412,7 +1412,7 @@ async function jwtResetPasswordWithOldPhone (event) {
     const changePasswordParams = {
       PreviousPassword: oldPassword,
       ProposedPassword: newPassword,
-      AccessToken: accessToken,
+      AccessToken: accessToken
     };
 
     await cognito.changePassword(changePasswordParams).promise();
@@ -1429,27 +1429,27 @@ async function jwtResetPasswordWithOldPhone (event) {
     let statusCode = 500;
 
     switch (error.code) {
-      case 'NotAuthorizedException':
-        message = 'Old password is incorrect or user not authorized.';
-        statusCode = 403;
-        break;
-      case 'InvalidPasswordException':
-        message = 'New password does not meet security requirements.';
-        statusCode = 400;
-        break;
-      case 'UserNotFoundException':
-        message = 'User does not exist.';
-        statusCode = 404;
-        break;
-      case 'LimitExceededException':
-      case 'TooManyRequestsException':
-        message = 'Too many requests. Please try again later.';
-        statusCode = 429;
-        break;
-      default:
-        message = 'Failed to reset password.';
-        statusCode = 500;
-        break;
+    case 'NotAuthorizedException':
+      message = 'Old password is incorrect or user not authorized.';
+      statusCode = 403;
+      break;
+    case 'InvalidPasswordException':
+      message = 'New password does not meet security requirements.';
+      statusCode = 400;
+      break;
+    case 'UserNotFoundException':
+      message = 'User does not exist.';
+      statusCode = 404;
+      break;
+    case 'LimitExceededException':
+    case 'TooManyRequestsException':
+      message = 'Too many requests. Please try again later.';
+      statusCode = 429;
+      break;
+    default:
+      message = 'Failed to reset password.';
+      statusCode = 500;
+      break;
     }
 
     return createResponse(statusCode, {
@@ -1458,7 +1458,7 @@ async function jwtResetPasswordWithOldPhone (event) {
       error: error.message
     });
   }
-};
+}
 
 
 module.exports = {
@@ -1473,5 +1473,5 @@ module.exports = {
   jwtResendConfirmationCodePhone,
   jwtResendPhoneAttributeVerification,
   jwtResetPasswordWithOld,
-  jwtResetPasswordWithOldPhone,
+  jwtResetPasswordWithOldPhone
 };

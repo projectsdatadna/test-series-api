@@ -113,7 +113,7 @@ function registerRoutes(app) {
   app.use('/student', studentRoutes);
 
   app.use('/remedial', remedial);
-  
+
   // ============ ROOT-LEVEL ROUTES (Must come AFTER namespaced routes) ============
   // ⚠️ CRITICAL: These routes use generic patterns like /:id and must be registered last
   app.use('/', hierarchyRoutes); // Hierarchy linking routes use root paths

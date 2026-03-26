@@ -8,25 +8,25 @@ const { PutCommand } = require('@aws-sdk/lib-dynamodb');
 const {
   generateSyllabusId,
   generateStandardId,
-  generateSubjectId,
+  generateSubjectId
 } = require('../file-hierarchy/utils');
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TABLES = {
   SYLLABUS: process.env.SYLLABUS_TABLE || 'SyllabusTable',
   STANDARDS: process.env.STANDARDS_TABLE || 'StandardsTable',
-  SUBJECTS: process.env.SUBJECTS_TABLE || 'SubjectsTable',
+  SUBJECTS: process.env.SUBJECTS_TABLE || 'SubjectsTable'
 };
 
 // Seed data structure
 const SEED_DATA = {
   syllabi: [
     { name: 'NCERT', id: 'SYL_NCERT' },
-    { name: 'TN State Board', id: 'SYL_TNST' },
+    { name: 'TN State Board', id: 'SYL_TNST' }
   ],
   standards: [
     { standard: '6', id: 'STD_6', label: 'Class 6' },
@@ -35,7 +35,7 @@ const SEED_DATA = {
     { standard: '9', id: 'STD_9', label: 'Class 9' },
     { standard: '10', id: 'STD_10', label: 'Class 10' },
     { standard: '11', id: 'STD_11', label: 'Class 11' },
-    { standard: '12', id: 'STD_12', label: 'Class 12' },
+    { standard: '12', id: 'STD_12', label: 'Class 12' }
   ],
   subjects: {
     '6-10': [
@@ -43,7 +43,7 @@ const SEED_DATA = {
       { name: 'English', id: 'SUB_ENG' },
       { name: 'Mathematics', id: 'SUB_MAT' },
       { name: 'Science', id: 'SUB_SCI' },
-      { name: 'Social Science', id: 'SUB_SOC' },
+      { name: 'Social Science', id: 'SUB_SOC' }
     ],
     '11-12': [
       { name: 'Tamil', id: 'SUB_TAM' },
@@ -55,9 +55,9 @@ const SEED_DATA = {
       { name: 'History', id: 'SUB_HIS' },
       { name: 'Geography', id: 'SUB_GEO' },
       { name: 'Economics', id: 'SUB_ECO' },
-      { name: 'Political Science', id: 'SUB_POL' },
-    ],
-  },
+      { name: 'Political Science', id: 'SUB_POL' }
+    ]
+  }
 };
 
 const seedSyllabi = async () => {
@@ -66,7 +66,7 @@ const seedSyllabi = async () => {
     const item = {
       syllabusId: syllabus.id,
       syllabusName: syllabus.name,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     try {
       await docClient.send(new PutCommand({ TableName: TABLES.SYLLABUS, Item: item }));
@@ -84,7 +84,7 @@ const seedStandards = async () => {
     const item = {
       standardId: standard.id,
       standardName: standard.label,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     try {
       await docClient.send(new PutCommand({ TableName: TABLES.STANDARDS, Item: item }));
@@ -100,7 +100,7 @@ const seedStandards = async () => {
 
 const seedSubjects = async () => {
   console.log('Seeding Subjects...');
-  
+
   // Combine all subjects (common for all standards)
   const allSubjects = [
     ...SEED_DATA.subjects['6-10'],
@@ -111,7 +111,7 @@ const seedSubjects = async () => {
     const item = {
       subjectId: subject.id,
       subjectName: subject.name,
-      linkedAt: new Date().toISOString(),
+      linkedAt: new Date().toISOString()
     };
     try {
       await docClient.send(new PutCommand({ TableName: TABLES.SUBJECTS, Item: item }));

@@ -4,7 +4,7 @@ const { getVectorData } = require('./dynamodbStore');
 const { createJob, getJobStatus } = require('./jobQueue');
 const { pollAndProcessJobs } = require('./backgroundWorker');
 
-// Use Lambda execution role - no explicit credentials needed 
+// Use Lambda execution role - no explicit credentials needed
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION || 'ap-south-1',
   signatureVersion: 'v4'
@@ -465,7 +465,7 @@ async function processRAGFileFromS3(req, res) {
       if (!finalDivision) {
         return res.status(400).json({
           success: false,
-          message: `bookType must be one of: main, supplementary, workbook`,
+          message: `bookType must be one of: main, supplementary, workbook`
         });
       }
       console.log(`[RAG] Mapped English bookType '${bookType}' to division '${finalDivision}'`);
@@ -487,7 +487,7 @@ async function processRAGFileFromS3(req, res) {
       if (!finalDivision) {
         return res.status(400).json({
           success: false,
-          message: `bookType for Social Science must be one of: Part I, Part II, Contemporary India, Economics, India and the Contemporary World, Democratic Politics`,
+          message: `bookType for Social Science must be one of: Part I, Part II, Contemporary India, Economics, India and the Contemporary World, Democratic Politics`
         });
       }
       console.log(`[RAG] Mapped Social Science bookType '${bookType}' to division '${finalDivision}'`);
@@ -509,7 +509,7 @@ async function processRAGFileFromS3(req, res) {
       if (!finalDivision) {
         return res.status(400).json({
           success: false,
-          message: `bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), Malhaar (मल्हार)`,
+          message: `bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), Malhaar (मल्हार)`
         });
       }
       console.log(`[RAG] Mapped Hindi 9th bookType '${bookType}' to division '${finalDivision}'`);
@@ -548,7 +548,7 @@ async function processRAGFileFromS3(req, res) {
     if (isEnglish9or10 && !finalDivision) {
       return res.status(400).json({
         success: false,
-        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)',
+        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)'
       });
     }
 
@@ -556,7 +556,7 @@ async function processRAGFileFromS3(req, res) {
     if (isHindi9 && !finalDivision) {
       return res.status(400).json({
         success: false,
-        message: 'division or bookType is required for 9th Hindi (Sparsh, Sanchayan, Kshitij, or Malhaar)',
+        message: 'division or bookType is required for 9th Hindi (Sparsh, Sanchayan, Kshitij, or Malhaar)'
       });
     }
 
@@ -570,7 +570,7 @@ async function processRAGFileFromS3(req, res) {
         : 'Contemporary India, Economics, India and the Contemporary World, Democratic Politics';
       return res.status(400).json({
         success: false,
-        message: `division or bookType is required for Social Science (${validParts})`,
+        message: `division or bookType is required for Social Science (${validParts})`
       });
     }
 
@@ -579,12 +579,12 @@ async function processRAGFileFromS3(req, res) {
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,
-        message: `division must be one of: ${validDivisions.join(', ')}`,
+        message: `division must be one of: ${validDivisions.join(', ')}`
       });
     }
 
     // Validate splitPattern if provided
-    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
     if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
       return res.status(400).json({
         success: false,
@@ -999,257 +999,6 @@ async function splitByPageRangesAPI(req, res) {
   }
 }
 
-async function batchProcessFromS3(req, res) {
-  try {
-    const { files } = req.body;
-
-    if (!files || !Array.isArray(files) || files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'files array is required and must not be empty'
-      });
-    }
-
-    if (files.length > 50) {
-      return res.status(400).json({
-        success: false,
-        message: 'Maximum 50 files allowed per batch'
-      });
-    }
-
-    const results = [];
-    const { processPDFToSections } = require('./pdfProcessor');
-    const hierarchyService = require('../file-hierarchy/service');
-
-    // Helper function to convert term format
-    const convertTermFormat = (termStr) => {
-      if (!termStr) return null;
-      if (termStr === 'TERM_1' || termStr === 'TERM_2' || termStr === 'TERM_3') {
-        return termStr;
-      }
-      const termMap = {
-        'Term I': 'TERM_1',
-        'Term II': 'TERM_2',
-        'Term III': 'TERM_3'
-      };
-      return termMap[termStr] || termStr;
-    };
-
-    // Process each file
-    for (const file of files) {
-      const {
-        fileKey,
-        documentId,
-        fileName,
-        syllabusId,
-        standardId,
-        subjectId,
-        chapterName,
-        division,
-        bookType,
-        pageRanges,
-        splitPattern,
-        sectionTitles,
-        term,
-        unitSectionTitles
-      } = file;
-
-      // Validate required fields
-      if (!fileKey || !documentId) {
-        results.push({
-          fileName: fileName || 'unknown',
-          documentId: documentId || 'unknown',
-          success: false,
-          error: 'fileKey and documentId are required'
-        });
-        continue;
-      }
-
-      try {
-        // Map bookType to division if needed
-        let finalDivision = division;
-        if (bookType && !division) {
-          const bookTypeMap = {
-            'main': 'Chapters',
-            'supplementary': 'Poems',
-            'workbook': 'Workbook'
-          };
-          finalDivision = bookTypeMap[bookType.toLowerCase()];
-          if (!finalDivision) {
-            results.push({
-              fileName,
-              documentId,
-              success: false,
-              error: 'bookType must be one of: main, supplementary, workbook'
-            });
-            continue;
-          }
-        }
-
-        // Detect TN State Board
-        const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
-
-        // Validate term for TN State Board
-        if (isTNStateBoard && term) {
-          const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
-          const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
-          const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
-          if (!allValidTerms.includes(term)) {
-            results.push({
-              fileName,
-              documentId,
-              success: false,
-              error: `term must be one of: ${validTermsFrontend.join(', ')} or ${validTermsDatabase.join(', ')}`
-            });
-            continue;
-          }
-        }
-
-        // Validate division for 9th and 10th English
-        const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
-                               (subjectId === 'SUB_ENG' || subjectId === 'English');
-        if (isEnglish9or10 && !finalDivision) {
-          results.push({
-            fileName,
-            documentId,
-            success: false,
-            error: 'division or bookType is required for 9th and 10th English'
-          });
-          continue;
-        }
-
-        // Validate division value
-        const validDivisions = ['Chapters', 'Poems', 'Workbook'];
-        if (finalDivision && !validDivisions.includes(finalDivision)) {
-          results.push({
-            fileName,
-            documentId,
-            success: false,
-            error: `division must be one of: ${validDivisions.join(', ')}`
-          });
-          continue;
-        }
-
-        // Validate splitPattern
-        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
-        if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
-          results.push({
-            fileName,
-            documentId,
-            success: false,
-            error: `splitPattern must be one of: ${validSplitPatterns.join(', ')}`
-          });
-          continue;
-        }
-
-        // Verify file exists in S3
-        await s3.headObject({
-          Bucket: S3_BUCKET,
-          Key: fileKey
-        }).promise();
-
-        // Download file from S3
-        const s3Object = await s3.getObject({
-          Bucket: S3_BUCKET,
-          Key: fileKey
-        }).promise();
-
-        const pdfBuffer = s3Object.Body;
-        const dbTerm = convertTermFormat(term);
-
-        let chapterData = null;
-
-        // Create chapter in hierarchy (skip for TN State Board)
-        if (syllabusId && standardId && subjectId && chapterName && !isTNStateBoard) {
-          try {
-            chapterData = await hierarchyService.createChapter(
-              subjectId,
-              chapterName,
-              documentId,
-              syllabusId,
-              standardId,
-              finalDivision || null,
-              dbTerm
-            );
-          } catch (e) {
-            console.warn(`[BATCH] Hierarchy creation failed for ${fileName}:`, e.message);
-          }
-        }
-
-        // Process PDF to sections
-        const storedSections = await processPDFToSections(pdfBuffer, {
-          chapterId: chapterData?.chapterId || documentId,
-          documentId: documentId,
-          chapterName: chapterName || fileName || null,
-          syllabusId,
-          standardId,
-          subjectId,
-          division: finalDivision || null,
-          bookType: bookType || null,
-          pageRanges: pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0 ? pageRanges : null,
-          splitPattern: splitPattern || 'regex_based',
-          sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
-          isTNStateBoard: isTNStateBoard,
-          term: term || null,
-          unitSectionTitles: unitSectionTitles || null
-        });
-
-        const splitStrategyUsed = (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0) 
-          ? 'page_ranges' 
-          : (splitPattern || 'regex_based');
-
-        results.push({
-          fileName,
-          documentId,
-          success: true,
-          data: {
-            totalSections: storedSections.length,
-            fileSizeMB: (pdfBuffer.length / 1024 / 1024).toFixed(2),
-            splitStrategyUsed,
-            sections: storedSections.map(s => ({
-              sectionId: s.sectionId,
-              sectionNumber: s.sectionNumber,
-              sectionTitle: s.sectionTitle,
-              totalChunks: s.totalChunks
-            }))
-          }
-        });
-
-      } catch (error) {
-        console.error(`[BATCH] Error processing ${fileName}:`, error.message);
-        results.push({
-          fileName,
-          documentId,
-          success: false,
-          error: error.message
-        });
-      }
-    }
-
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        results,
-        summary: {
-          total: files.length,
-          successful: successCount,
-          failed: failureCount
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('[BATCH] Error in batchProcessFromS3:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-}
-
 /**
  * Queue a single file for async processing
  * Returns immediately with jobId, processing happens in background
@@ -1290,11 +1039,11 @@ async function queueProcessFromS3(req, res) {
         'workbook': 'Workbook'
       };
       finalDivision = bookTypeMap[bookType.toLowerCase()];
-      
+
       if (!finalDivision) {
         return res.status(400).json({
           success: false,
-          message: `bookType must be one of: main, supplementary, workbook`,
+          message: `bookType must be one of: main, supplementary, workbook`
         });
       }
     }
@@ -1307,7 +1056,7 @@ async function queueProcessFromS3(req, res) {
       const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
       const validTermsDatabase = ['TERM_1', 'TERM_2', 'TERM_3'];
       const allValidTerms = [...validTermsFrontend, ...validTermsDatabase];
-      
+
       if (!allValidTerms.includes(term)) {
         return res.status(400).json({
           success: false,
@@ -1317,12 +1066,12 @@ async function queueProcessFromS3(req, res) {
     }
 
     // Validate division for 9th and 10th English
-    const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
+    const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
                            (subjectId === 'SUB_ENG' || subjectId === 'English');
     if (isEnglish9or10 && !finalDivision) {
       return res.status(400).json({
         success: false,
-        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)',
+        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)'
       });
     }
 
@@ -1331,7 +1080,7 @@ async function queueProcessFromS3(req, res) {
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,
-        message: `division must be one of: ${validDivisions.join(', ')}`,
+        message: `division must be one of: ${validDivisions.join(', ')}`
       });
     }
 
@@ -1426,7 +1175,7 @@ async function getJobStatusAPI(req, res) {
         message: error.message
       });
     }
-    
+
     console.error('[RAG] Error in getJobStatusAPI:', error.message);
     return res.status(500).json({
       success: false,

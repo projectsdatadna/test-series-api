@@ -39,5 +39,5 @@ module.exports = {
   generateChapterId,
   generateSectionId,
   generateFileId,
-  validateHierarchy,
+  validateHierarchy
 };

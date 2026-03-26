@@ -6,7 +6,7 @@ const { DynamoDBDocumentClient, PutCommand, ScanCommand } = require('@aws-sdk/li
 const router = express.Router();
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-east-1'
 });
 const ddbDocClient = DynamoDBDocumentClient.from(client);
 
@@ -17,7 +17,7 @@ async function getNextSchoolId() {
   try {
     const command = new ScanCommand({
       TableName: TABLE_NAME,
-      ProjectionExpression: 'schoolId',
+      ProjectionExpression: 'schoolId'
     });
 
     const response = await ddbDocClient.send(command);
@@ -42,14 +42,14 @@ async function getNextSchoolId() {
 router.get('/schools', async (req, res) => {
   try {
     const command = new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: TABLE_NAME
     });
 
     const response = await ddbDocClient.send(command);
     res.json({
       success: true,
       data: response.Items || [],
-      count: response.Count || 0,
+      count: response.Count || 0
     });
   } catch (error) {
     console.error('Error fetching schools:', error);
@@ -66,7 +66,7 @@ router.post('/schools', async (req, res) => {
     if (!name?.trim() || !email?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'Name and Email are required',
+        error: 'Name and Email are required'
       });
     }
 
@@ -81,12 +81,12 @@ router.post('/schools', async (req, res) => {
       medium: medium?.trim() || '',
       email: email.trim(),
       address: address?.trim() || '',
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
 
     const command = new PutCommand({
       TableName: TABLE_NAME,
-      Item: newSchool,
+      Item: newSchool
     });
 
     await ddbDocClient.send(command);
@@ -94,7 +94,7 @@ router.post('/schools', async (req, res) => {
     res.status(201).json({
       success: true,
       data: newSchool,
-      message: 'School added successfully',
+      message: 'School added successfully'
     });
   } catch (error) {
     console.error('Error adding school:', error);

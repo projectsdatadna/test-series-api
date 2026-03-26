@@ -5,7 +5,7 @@ const { JWSauthenticate } = require("../../components/JWTtoken");
 
 
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
 });
 
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
@@ -39,12 +39,12 @@ async function createUser(event) {
       });
     }
 
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      roleId = 'student', 
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      roleId = 'student',
       status = 'active',
       preferences = {},
       notificationPrefs = { email: true, push: true }
@@ -236,11 +236,11 @@ async function updateUser(event) {
     }
 
     const updates = JSON.parse(event.body);
-    
+
     // Fields that can be updated
     const allowedFields = [
-      'first_name', 'last_name', 'phone', 
-      'role_id', 'status', 'preferences', 
+      'first_name', 'last_name', 'phone',
+      'role_id', 'status', 'preferences',
       'notificationPrefs'
     ];
 

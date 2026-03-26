@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 // Configure AWS SDK
 AWS.config.update({
-  region: process.env.AWS_REGION || 'ap-south-1',
+  region: process.env.AWS_REGION || 'ap-south-1'
   // accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   // secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
@@ -20,7 +20,7 @@ const USER_POOL_ID = process.env.USER_POOL_ID;
 const verifier = CognitoJwtVerifier.create({
   userPoolId: USER_POOL_ID,
   tokenUse: 'access',
-  clientId: CLIENT_ID,
+  clientId: CLIENT_ID
 });
 
 const createResponse = (statusCode, body) => {
@@ -51,7 +51,7 @@ const JWSauthenticate = (handler) => {
       const authHeader = event.headers?.Authorization || event.headers?.authorization;
 
       console.log("authHeader", event);
-      
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return createResponse(401, {
           success: false,
@@ -65,7 +65,7 @@ const JWSauthenticate = (handler) => {
       try {
         // Verify JWT token
         const payload = await verifier.verify(token);
-        
+
         // Add user info to event for the handler
         event.user = {
           userId: payload.sub,
@@ -81,7 +81,7 @@ const JWSauthenticate = (handler) => {
 
       } catch (verifyError) {
         console.error('JWT Verification Error:', verifyError);
-        
+
         if (verifyError.name === 'TokenExpiredError') {
           return createResponse(401, {
             success: false,

@@ -24,7 +24,7 @@ function errorHandler(err, req, res, next) {
     status: err.status || 500,
     code: err.code
   });
-  
+
   // Default error response
   const errorResponse = {
     success: false,
@@ -33,46 +33,46 @@ function errorHandler(err, req, res, next) {
     path: req.originalUrl,
     method: req.method
   };
-  
+
   // Handle specific error types
   if (err.name === 'ValidationError') {
     errorResponse.message = 'Validation failed';
     errorResponse.details = err.message;
     return res.status(400).json(errorResponse);
   }
-  
+
   if (err.name === 'UnauthorizedError') {
     errorResponse.message = 'Unauthorized access';
     return res.status(401).json(errorResponse);
   }
-  
+
   if (err.name === 'NotFoundError') {
     errorResponse.message = 'Resource not found';
     return res.status(404).json(errorResponse);
   }
-  
+
   // Handle AWS SDK errors
   if (err.code === 'NotAuthorizedException') {
     errorResponse.message = 'Invalid credentials';
     return res.status(401).json(errorResponse);
   }
-  
+
   if (err.code === 'UserNotFoundException') {
     errorResponse.message = 'User not found';
     return res.status(404).json(errorResponse);
   }
-  
+
   if (err.code === 'InvalidParameterException') {
     errorResponse.message = 'Invalid parameters provided';
     return res.status(400).json(errorResponse);
   }
-  
+
   // Handle JSON parsing errors
   if (err instanceof SyntaxError && 'body' in err) {
     errorResponse.message = 'Invalid JSON in request body';
     return res.status(400).json(errorResponse);
   }
-  
+
   // Generic server error
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json(errorResponse);
@@ -104,12 +104,12 @@ function notFoundHandler(req, res) {
  */
 function corsConfig() {
   return {
-    origin: process.env.ALLOWED_ORIGINS ? 
-      process.env.ALLOWED_ORIGINS.split(',') : 
+    origin: process.env.ALLOWED_ORIGINS ?
+      process.env.ALLOWED_ORIGINS.split(',') :
       [
         'http://localhost:3001',
         'http://localhost:3000',
-        'http://test-series-ui.s3-website-us-east-1.amazonaws.com',
+        'http://test-series-ui.s3-website-us-east-1.amazonaws.com'
       ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -145,10 +145,10 @@ function securityHeaders(req, res, next) {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   // Remove powered by header
   res.removeHeader('X-Powered-By');
-  
+
   next();
 }
 
@@ -160,7 +160,7 @@ function validateRequest(req, res, next) {
   if (req.method === 'OPTIONS' || req.path.includes('/anthropic/upload') || req.path.includes('/adaptive-content')) {
     return next();
   }
-  
+
   // Basic request validation
   if (req.method === 'POST' || req.method === 'PUT') {
     if (!req.body || Object.keys(req.body).length === 0) {
@@ -171,7 +171,7 @@ function validateRequest(req, res, next) {
       });
     }
   }
-  
+
   next();
 }
 
@@ -182,11 +182,11 @@ function apiVersioning(req, res, next) {
   // Set API version in response headers
   res.setHeader('API-Version', '2.0.0');
   res.setHeader('API-Architecture', 'Modular');
-  
+
   // Handle version-specific logic if needed
   const version = req.headers['api-version'] || '2.0.0';
   req.apiVersion = version;
-  
+
   next();
 }
 

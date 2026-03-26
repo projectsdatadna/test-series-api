@@ -17,7 +17,7 @@ router.get('/exams/:examId/results/export', (req, res) => {
   // Special handling for CSV export
   resultsController.exportResults({
     pathParameters: { examId: req.params.examId },
-    headers: req.headers,
+    headers: req.headers
   }).then(result => {
     if (result.headers && result.headers['Content-Type'] === 'text/csv') {
       res.set(result.headers);

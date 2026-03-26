@@ -16,7 +16,7 @@ router.get('/export', (req, res) => {
   // Special handling for CSV export
   auditLogsController.exportLogs({
     headers: req.headers,
-    queryStringParameters: req.query,
+    queryStringParameters: req.query
   }).then(result => {
     if (req.query.format === 'csv') {
       res.set(result.headers);
