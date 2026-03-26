@@ -37,10 +37,10 @@ const HINDI_STOP_HEADINGS = [
 function isPoem(text) {
   const lines = text.split('\n').filter(l => l.trim().length > 0);
   if (lines.length < 3) return false;
-  
+
   const shortLines = lines.filter(l => l.trim().length < 40);
   const ratio = shortLines.length / lines.length;
-  
+
   return ratio > 0.6;
 }
 
@@ -74,10 +74,10 @@ function removeExercises(text) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     // Check if this line is EXACTLY a stop heading (not just contains it)
-    const isStopHeading = HINDI_STOP_HEADINGS.some(heading => 
-      line === heading || 
+    const isStopHeading = HINDI_STOP_HEADINGS.some(heading =>
+      line === heading ||
       line.startsWith(heading + ' ') ||
       line.startsWith(heading + ':') ||
       line.startsWith(heading + '।')
@@ -108,11 +108,11 @@ function removeExercises(text) {
  */
 function splitHindiChapters(text) {
   const chapters = [];
-  
+
   // More flexible pattern for chapter headers
   // Matches: "अध्याय 1", "Chapter 1", "पाठ 1", "Lesson 1", "1.", "1 -", etc.
   const chapterPattern = /(?:अध्याय|Chapter|पाठ|Lesson|अध्य|Ch\.?)\s*(\d+)\s*[.:\-]?\s*([^\n\r]*)/gi;
-  
+
   let match;
   const matches = [];
 
@@ -142,10 +142,10 @@ function splitHindiChapters(text) {
   for (let i = 0; i < matches.length; i++) {
     const currentMatch = matches[i];
     const nextMatch = matches[i + 1];
-    
+
     const startIndex = currentMatch.startIndex + currentMatch.fullMatch.length;
     const endIndex = nextMatch ? nextMatch.startIndex : text.length;
-    
+
     const content = text.substring(startIndex, endIndex).trim();
 
     if (content.length > 0) {
@@ -192,7 +192,7 @@ function chunkContent(text, chunkSize = 500) {
  */
 function splitHindiBook(text) {
   console.log('[Hindi Splitter] Starting Hindi book processing');
-  
+
   // Step 1: Clean text
   const cleanedText = cleanHindiText(text);
   console.log(`[Hindi Splitter] Cleaned text: ${cleanedText.length} characters`);
@@ -258,7 +258,7 @@ function splitHindiBook(text) {
 
   chapters.forEach((chapter) => {
     console.log(`[Hindi Splitter] Processing Chapter ${chapter.chapterNumber}: "${chapter.chapterTitle}"`);
-    
+
     const contentType = chapter.isPoem ? 'poem' : 'story';
     console.log(`[Hindi Splitter] Content type detected: ${contentType}`);
 
@@ -314,12 +314,12 @@ function splitByDetectedHeadings(text, foundSections) {
     // Extract content between current heading and next heading
     const contentStart = currentSection.index + currentSection.heading.length;
     const contentEnd = nextSection ? nextSection.index : text.length;
-    
+
     const sectionContent = text.substring(contentStart, contentEnd).trim();
 
     if (sectionContent.length > 0) {
       console.log(`[Hindi Splitter] Creating section: "${currentSection.heading}" (${sectionContent.length} chars)`);
-      
+
       sections.push({
         sectionNumber: sectionNumber,
         sectionTitle: currentSection.heading,
@@ -346,7 +346,7 @@ function splitByDetectedHeadings(text, foundSections) {
  */
 function splitHindiBookByHeadings(text) {
   console.log('[Hindi Splitter] Starting heading-based splitting for NCERT Hindi books');
-  
+
   // Step 1: Clean text
   const cleanedText = cleanHindiText(text);
   console.log(`[Hindi Splitter] Cleaned text: ${cleanedText.length} characters`);
@@ -354,7 +354,7 @@ function splitHindiBookByHeadings(text) {
   // Step 2: Find the "पाठ से" marker - stop parsing after this
   const stopMarker = 'पाठ से';
   const stopIndex = cleanedText.indexOf(stopMarker);
-  
+
   let contentToProcess = cleanedText;
   if (stopIndex !== -1) {
     console.log(`[Hindi Splitter] Found stop marker "${stopMarker}" at position ${stopIndex}`);
@@ -435,12 +435,12 @@ function splitByHeadings(text, headings) {
     // Extract content between current heading and next heading
     const contentStart = currentHeading.index + currentHeading.heading.length;
     const contentEnd = nextHeading ? nextHeading.index : text.length;
-    
+
     const sectionContent = text.substring(contentStart, contentEnd).trim();
 
     if (sectionContent.length > 0) {
       console.log(`[Hindi Splitter] Creating section: "${currentHeading.heading}" (${sectionContent.length} chars)`);
-      
+
       sections.push({
         sectionNumber: sectionNumber,
         sectionTitle: currentHeading.heading,
@@ -478,22 +478,22 @@ function splitHindiBookWithTitles(text, sectionTitles = []) {
 
   for (let i = 0; i < sectionTitles.length; i++) {
     const title = sectionTitles[i];
-    
+
     // Find the position of this title in the text
     const titleIndex = textWithoutExercises.indexOf(title, currentIndex);
-    
+
     if (titleIndex === -1) {
       console.warn(`[Hindi Splitter] Section title not found: "${title}"`);
       continue;
     }
 
     // Find the start of next section or end of text
-    const nextTitleIndex = i < sectionTitles.length - 1 
+    const nextTitleIndex = i < sectionTitles.length - 1
       ? textWithoutExercises.indexOf(sectionTitles[i + 1], titleIndex + 1)
       : textWithoutExercises.length;
 
     const endIndex = nextTitleIndex === -1 ? textWithoutExercises.length : nextTitleIndex;
-    
+
     // Extract section content (skip the title itself)
     const sectionContent = textWithoutExercises
       .substring(titleIndex + title.length, endIndex)

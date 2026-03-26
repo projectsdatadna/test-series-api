@@ -48,7 +48,7 @@ async function uploadToClaudeAPI(req, res) {
     console.log('📤 Uploading to Claude Files API:', file.originalname, `${file.buffer.length} bytes`);
 
     const boundary = `----formdata-${Math.random().toString(36)}`;
-    
+
     const parts = [];
     parts.push(Buffer.from(`--${boundary}\r\n`));
     parts.push(Buffer.from(`Content-Disposition: form-data; name="file"; filename="${file.originalname}"\r\n`));
@@ -85,7 +85,7 @@ async function uploadToClaudeAPI(req, res) {
 
     const claudeData = await response.json();
     console.log('✅ File uploaded to Claude:', claudeData.id);
-    
+
     res.json({
       success: true,
       fileId: claudeData.id,
@@ -105,7 +105,7 @@ async function uploadToClaudeAPI(req, res) {
 async function analyzeDocument(req, res) {
   try {
     const { fileId } = req.body;
-    
+
     if (!fileId) {
       return res.status(400).json({ success: false, message: 'fileId required' });
     }
@@ -143,7 +143,7 @@ Extract ALL headers, sections, tables, and images separately. Return ONLY valid 
     } catch (e) {
       console.error('JSON parse error:', e);
       console.log('Raw Claude response:', message.content[0].text);
-      
+
       const rawText = message.content[0].text.slice(0, 2000);
       indexes = [{
         type: 'document',
@@ -161,9 +161,9 @@ Extract ALL headers, sections, tables, and images separately. Return ONLY valid 
 
   } catch (error) {
     console.error('Analyze error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 }
@@ -220,8 +220,8 @@ Content: ${selectedIndex.content}`;
     const message = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: maxTokens || 4000,
-      messages: [{ 
-        role: 'user', 
+      messages: [{
+        role: 'user',
         content: `${prompts[category]}
 
 ${contentBlock}
@@ -234,8 +234,8 @@ Generate exactly 8 questions from ONLY this content. Return ONLY HTML.`
 
     res.json({
       success: true,
-      data: { 
-        html, 
+      data: {
+        html,
         category,
         totalQuestions: 8,
         sectionIds,
@@ -252,10 +252,10 @@ Generate exactly 8 questions from ONLY this content. Return ONLY HTML.`
 
   } catch (error) {
     console.error('Generate error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Generation failed', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Generation failed',
+      error: error.message
     });
   }
 }
@@ -271,7 +271,7 @@ async function uploadToClaudeAdvanced(req, res) {
     console.log('📤 Uploading to Claude Files API (Advanced):', file.originalname, `${file.buffer.length} bytes`);
 
     const boundary = `----formdata-${Math.random().toString(36)}`;
-    
+
     const parts = [];
     parts.push(Buffer.from(`--${boundary}\r\n`));
     parts.push(Buffer.from(`Content-Disposition: form-data; name="file"; filename="${file.originalname}"\r\n`));
@@ -308,7 +308,7 @@ async function uploadToClaudeAdvanced(req, res) {
 
     const claudeData = await response.json();
     console.log('✅ File uploaded to Claude (Advanced):', claudeData.id);
-    
+
     res.json({
       success: true,
       fileId: claudeData.id,
@@ -328,7 +328,7 @@ async function uploadToClaudeAdvanced(req, res) {
 async function analyzeDocumentAdvanced(req, res) {
   try {
     const { fileId } = req.body;
-    
+
     if (!fileId) {
       return res.status(400).json({ success: false, message: 'fileId required' });
     }
@@ -353,14 +353,14 @@ async function analyzeDocumentAdvanced(req, res) {
             }
           }
         ]
-      }] 
+      }]
     },{
       headers: {
         "anthropic-beta": "files-api-2025-04-14"
       }
-  });
+    });
 
-   const extractIndexes = (text) => {
+    const extractIndexes = (text) => {
       const cleaners = [
         (t) => t.replace(/```(?:json)?\s*|\s*```/g, '').trim(),
         (t) => t.replace(/[^\{].*?(?=\{)/s, '').trim(),
@@ -380,7 +380,7 @@ async function analyzeDocumentAdvanced(req, res) {
           continue;
         }
       }
-      
+
       return [{
         type: 'document',
         content: 'Complete document content for teaching',
@@ -417,7 +417,7 @@ PARAGRAPH 2: [second paragraph here]`
 
       const responseText = contentPrompt.content[0].text;
       const paragraphs = responseText.split('¶¶¶');
-      
+
       const paragraph1 = paragraphs[0]?.trim() || index.content.substring(0, 200) || 'This section introduces key concepts and foundational knowledge essential for understanding the topic.';
       const paragraph2 = paragraphs[1]?.trim() || index.content.substring(200, 400) || 'The content provides practical examples and applications to build strong foundational understanding.';
 
@@ -441,9 +441,9 @@ PARAGRAPH 2: [second paragraph here]`
 
   } catch (error) {
     console.error('Analyze error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
+    res.status(500).json({
+      success: false,
+      message: error.message
     });
   }
 }
@@ -505,8 +505,8 @@ Paragraph 2: ${selectedIndex.paragraph2}`;
     const message = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
       max_tokens: maxTokens || 4000,
-      messages: [{ 
-        role: 'user', 
+      messages: [{
+        role: 'user',
         content: `${prompts[category]}
 
 FULL CONTENT (use ONLY this):
@@ -520,8 +520,8 @@ Generate exactly 8 questions. Return ONLY styled HTML with proper classes.`
 
     res.json({
       success: true,
-      data: { 
-        html, 
+      data: {
+        html,
         category,
         totalQuestions: 8,
         sourceContent: selectedIndex?.fullContent || null,
@@ -539,10 +539,10 @@ Generate exactly 8 questions. Return ONLY styled HTML with proper classes.`
 
   } catch (error) {
     console.error('Generate error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Generation failed', 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: 'Generation failed',
+      error: error.message
     });
   }
 }

@@ -117,15 +117,15 @@ function splitByRegex(text, regex) {
   const matches = [];
   let match;
   const seenSectionNumbers = new Set();
-  
+
   const imagePatterns = /^\s*(?:figure|fig|image|img|photo|plate|diagram|chart|graph|table|exhibit|illustration|picture|visual|graphic|map|sketch|drawing|appendix|annex|attachment|box|sidebar|infobox)\s*[\d\.\s]*:?/i;
-  
+
   // Split text into lines for better title extraction
   const lines = text.split('\n');
 
   while ((match = regex.exec(text)) !== null) {
     const fullMatch = match[0].trim();
-    
+
     if (imagePatterns.test(fullMatch)) {
       console.log(`[RAG] Skipping image/figure reference: "${fullMatch}"`);
       continue;
@@ -134,10 +134,10 @@ function splitByRegex(text, regex) {
     const numberMatch = fullMatch.match(/^(\d+(?:\.\d+)*)\s*[:|-]?\s*(.*)$/);
     const sectionNumber = numberMatch ? numberMatch[1] : fullMatch;
     let sectionTitle = numberMatch && numberMatch[2] ? numberMatch[2].trim() : fullMatch;
-    
+
     // Clean up tabs and extra whitespace
     sectionTitle = sectionTitle.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim();
-    
+
     // Remove trailing numbers
     sectionTitle = sectionTitle.replace(/\d+\.\d+(?:\.\d+)*\s*$/g, '').trim();
     const parts = sectionTitle.split(/\d+\.\d+(?:\.\d+)*\s*/);
@@ -149,34 +149,34 @@ function splitByRegex(text, regex) {
     }
 
     sectionTitle = sectionTitle.replace(/[\d\.\s]+$/g, '').trim();
-    
+
     // VALIDATION 1: Title must start with uppercase letter
     if (sectionTitle.length > 0 && sectionTitle[0] !== sectionTitle[0].toUpperCase()) {
       console.log(`[RAG] Skipping section ${sectionNumber} - title doesn't start with uppercase: "${sectionTitle}"`);
       continue;
     }
-    
+
     // VALIDATION 2: Title must have minimum length and not be just punctuation
     if (sectionTitle.length < 3 || /^[\d.\s\-:,;|]*$/.test(sectionTitle)) {
       console.log(`[RAG] Skipping section ${sectionNumber} - invalid title: "${sectionTitle}"`);
       continue;
     }
-    
+
     // VALIDATION 3: Check if title looks incomplete (ends with preposition or conjunction)
     const incompleteTitlePattern = /\b(in|on|at|to|for|of|and|or|but|with|from|by|the|a|an|different|various|several|many|some|other)\s*$/i;
     if (incompleteTitlePattern.test(sectionTitle)) {
       console.log(`[RAG] Title appears incomplete: "${sectionTitle}", attempting to find continuation...`);
-      
+
       // Find the line in the original text and check next line
       const matchLineIndex = text.substring(0, match.index).split('\n').length - 1;
       if (matchLineIndex + 1 < lines.length) {
         const nextLine = lines[matchLineIndex + 1].trim();
-        
+
         // If next line starts with uppercase and is not a section number, it's likely a continuation
-        if (nextLine.length > 0 && 
-            nextLine[0] === nextLine[0].toUpperCase() && 
+        if (nextLine.length > 0 &&
+            nextLine[0] === nextLine[0].toUpperCase() &&
             !nextLine.match(/^\d+\.\d+/)) {
-          
+
           // Extract the first word or phrase from next line (likely the rest of the title)
           // Look for the first complete word (up to punctuation or lowercase word)
           const continuationMatch = nextLine.match(/^([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)/);
@@ -225,10 +225,10 @@ function splitByRegex(text, regex) {
     if (preContent.length > 0) {
       const firstSectionNumber = matches[0].sectionNumber;
       const chapterNumber = firstSectionNumber.split('.')[0];
-      
+
       const firstSectionTitle = matches[0].sectionTitle.toLowerCase();
       const isFirstSectionIntroduction = /introduction|preface|preamble|foreword|prologue/.test(firstSectionTitle);
-      
+
       // Only create X.0 introduction if first section is NOT already an introduction
       if (!isFirstSectionIntroduction) {
         sections.push({
@@ -540,26 +540,26 @@ function splitByDetectedPattern(text) {
   }
 
   switch (pattern) {
-    case 'HEADING_BASED':
-      return splitByHeadings(text);
+  case 'HEADING_BASED':
+    return splitByHeadings(text);
 
-    case 'CHAPTER_BASED':
-      return splitByChaptersAndSections(text);
+  case 'CHAPTER_BASED':
+    return splitByChaptersAndSections(text);
 
-    case 'LESSON_BASED':
-      return splitByManualAnchors(text, lessonAnchors);
+  case 'LESSON_BASED':
+    return splitByManualAnchors(text, lessonAnchors);
 
-    case 'NUMBERED_DECIMAL':
-      return splitByRegex(text, /^\s*(\d+\.\d+(?:\.\d+)*.*?)$/gm);
-    case 'NUMBERED_SIMPLE':
-      return splitByRegex(text, /^\s*(\d+\.\s+.*?)$/gm);
+  case 'NUMBERED_DECIMAL':
+    return splitByRegex(text, /^\s*(\d+\.\d+(?:\.\d+)*.*?)$/gm);
+  case 'NUMBERED_SIMPLE':
+    return splitByRegex(text, /^\s*(\d+\.\s+.*?)$/gm);
 
-    default:
-      return [{
-        sectionNumber: '1',
-        title: 'Full Chapter',
-        content: text.trim()
-      }];
+  default:
+    return [{
+      sectionNumber: '1',
+      title: 'Full Chapter',
+      content: text.trim()
+    }];
   }
 }
 
@@ -686,12 +686,12 @@ async function processSectionsToChunks(sections) {
 /**
  * Split Science books (9th and 10th) with NCERT-specific structure
  * Handles two-column layouts where sections appear out of order
- * 
+ *
  * NCERT Science books use:
  * - Main sections: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, etc.
  * - Subsections: 1.1.1, 1.1.2, 1.2.1, etc.
  * - Activities: Activity 1.1, Activity 1.2, etc.
- * 
+ *
  * Strategy:
  * 1. Find ALL section headers (including those with formatting issues)
  * 2. Sort by section number (not by appearance) to handle two-column layouts
@@ -702,7 +702,7 @@ async function processSectionsToChunks(sections) {
 /**
  * Helper function to split Science book using custom section titles
  * This bypasses regex detection and uses provided section numbers and titles
- * 
+ *
  * @param {string} text - The full text of the chapter
  * @param {Array} customSectionTitles - Array of {number: "1.1", title: "Section Title"}
  * @returns {Array} Array of sections with sectionNumber, title, and content
@@ -712,7 +712,7 @@ function splitScienceBookWithCustomTitles(text, customSectionTitles) {
     console.log('[RAG] splitScienceBookWithCustomTitles - Using custom titles for ' + customSectionTitles.length + ' sections');
 
     const sections = [];
-    
+
     // Sort custom titles by section number
     const sortedTitles = [...customSectionTitles].sort((a, b) => {
       const aParts = a.number.split('.').map(Number);
@@ -727,13 +727,13 @@ function splitScienceBookWithCustomTitles(text, customSectionTitles) {
 
     // Find positions of each section title in the text
     const sectionPositions = [];
-    
+
     sortedTitles.forEach(titleObj => {
       const sectionNumber = titleObj.number;
       const sectionTitle = titleObj.title;
-      
+
       let foundIndex = -1;
-      
+
       // Strategy 1: Look for the exact title
       const titleRegex = new RegExp(
         sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'),
@@ -743,11 +743,11 @@ function splitScienceBookWithCustomTitles(text, customSectionTitles) {
       if (match) {
         foundIndex = match.index;
       }
-      
+
       // Strategy 2: If not found, look for section number followed by title
       if (foundIndex === -1) {
         const numberTitleRegex = new RegExp(
-          sectionNumber.replace(/\./g, '\\.') + '\\s+' + 
+          sectionNumber.replace(/\./g, '\\.') + '\\s+' +
           sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'),
           'i'
         );
@@ -756,7 +756,7 @@ function splitScienceBookWithCustomTitles(text, customSectionTitles) {
           foundIndex = match2.index;
         }
       }
-      
+
       // Strategy 3: If still not found, look for just the section number
       if (foundIndex === -1) {
         const numberRegex = new RegExp('^\\s*' + sectionNumber.replace(/\./g, '\\.') + '\\s*$', 'gm');
@@ -765,7 +765,7 @@ function splitScienceBookWithCustomTitles(text, customSectionTitles) {
           foundIndex = match3.index;
         }
       }
-      
+
       if (foundIndex !== -1) {
         sectionPositions.push({
           number: sectionNumber,
@@ -884,10 +884,10 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
     let match;
     while ((match = pattern1.exec(text)) !== null) {
       const sectionNumber = match[1];
-      
+
       // Skip subsections (X.Y.Z format)
       if (!isMainSection(sectionNumber)) continue;
-      
+
       let sectionTitle = match[2].trim();
       sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
 
@@ -908,7 +908,7 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
           const nextLineStart = matchEndLine + 1;
           const nextLineEnd = text.indexOf('\n', nextLineStart);
           const nextLine = text.substring(nextLineStart, nextLineEnd).trim();
-          
+
           // If next line is short and starts with a letter, it's likely a continuation
           if (nextLine && /^[a-zA-Z]/.test(nextLine) && nextLine.length < 50 && !nextLine.match(/^(On|The|In|For|With|By|As|At|From|To|And|Or|But|If|When|Where|Why|How|This|That|These|Those|Which|Who|What|Where|When|Why|How)\s/)) {
             sectionTitle = sectionTitle + ' ' + nextLine;
@@ -934,10 +934,10 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
     const pattern2 = /^\s*(\d+\.\d+)\s*$/gm;
     while ((match = pattern2.exec(text)) !== null) {
       const sectionNumber = match[1];
-      
+
       // Skip subsections
       if (!isMainSection(sectionNumber)) continue;
-      
+
       const lineNum = text.substring(0, match.index).split('\n').length - 1;
 
       // For standalone section numbers, try to get title from next line
@@ -963,10 +963,10 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
     const pattern3 = /^\s*(\d+\.\d+)\s*\n\s*([A-Z][a-zA-Z\s\-:,;?!]+?)$/gm;
     while ((match = pattern3.exec(text)) !== null) {
       const sectionNumber = match[1];
-      
+
       // Skip subsections
       if (!isMainSection(sectionNumber)) continue;
-      
+
       let sectionTitle = match[2].trim();
       sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
 
@@ -995,10 +995,10 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
     const pattern4 = /^\s*(\d+\.\d+)([A-Z][a-zA-Z\s\-:,;?!]+?)$/gm;
     while ((match = pattern4.exec(text)) !== null) {
       const sectionNumber = match[1];
-      
+
       // Skip subsections
       if (!isMainSection(sectionNumber)) continue;
-      
+
       let sectionTitle = match[2].trim();
       sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
 
@@ -1019,7 +1019,7 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
           const nextLineStart = matchEndLine + 1;
           const nextLineEnd = text.indexOf('\n', nextLineStart);
           const nextLine = text.substring(nextLineStart, nextLineEnd).trim();
-          
+
           // If next line is short and starts with a letter, it's likely a continuation
           if (nextLine && /^[a-zA-Z]/.test(nextLine) && nextLine.length < 50 && !nextLine.match(/^(On|The|In|For|With|By|As|At|From|To|And|Or|But|If|When|Where|Why|How|This|That|These|Those|Which|Who|What|Where|When|Why|How)\s/)) {
             sectionTitle = sectionTitle + ' ' + nextLine;
@@ -1043,10 +1043,10 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
     const pattern5 = /^\s*(\d+\.\d+)\s*\n\s*([A-Z][a-zA-Z\s\-:,;?!]+?)\n\s*([a-z][a-zA-Z\s\-:,;?!]+?)$/gm;
     while ((match = pattern5.exec(text)) !== null) {
       const sectionNumber = match[1];
-      
+
       // Skip subsections
       if (!isMainSection(sectionNumber)) continue;
-      
+
       let sectionTitle = (match[2] + ' ' + match[3]).trim();
       sectionTitle = sectionTitle.replace(/\s+/g, ' ').trim();
 
@@ -1091,7 +1091,7 @@ function splitScienceBook(text, subjectId = null, customSectionTitles = null) {
         }
       }
     });
-    
+
     // Convert back to array
     allMatches.length = 0;
     Object.values(uniqueSections).forEach(match => allMatches.push(match));

@@ -41,9 +41,9 @@ async function createFlashcard(event) {
 
     const validDifficulty = ['basic', 'intermediate', 'advanced'];
     if (!validDifficulty.includes(difficulty.toLowerCase())) {
-      return createResponse(400, { 
-        success: false, 
-        message: `Invalid difficulty. Must be one of: ${validDifficulty.join(', ')}` 
+      return createResponse(400, {
+        success: false,
+        message: `Invalid difficulty. Must be one of: ${validDifficulty.join(', ')}`
       });
     }
 
@@ -149,9 +149,9 @@ async function getFlashcardDetails(event) {
     const flashcardId = event.pathParameters?.flashcardId;
     if (!flashcardId) return createResponse(400, { success: false, message: 'flashcardId is required' });
 
-    const result = await dynamoDB.get({ 
-      TableName: FLASHCARDS_TABLE, 
-      Key: { flashcard_id: flashcardId } 
+    const result = await dynamoDB.get({
+      TableName: FLASHCARDS_TABLE,
+      Key: { flashcard_id: flashcardId }
     }).promise();
 
     if (!result.Item) return createResponse(404, { success: false, message: 'Flashcard not found' });

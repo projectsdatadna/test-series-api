@@ -328,7 +328,7 @@ async function generateAdaptiveContent(req, res) {
       clearTimeout(timeoutId);
       return res.status(400).json({
         success: false,
-        message: "Anthropic API key not configured",
+        message: "Anthropic API key not configured"
       });
     }
 
@@ -341,7 +341,7 @@ async function generateAdaptiveContent(req, res) {
       contentTypeId,
       contentDepth,
       visualStyle,
-      outputLanguage,
+      outputLanguage
     } = req.body;
 
     // Validate required fields
@@ -349,7 +349,7 @@ async function generateAdaptiveContent(req, res) {
       "fileId",
       "sectionNumber",
       "topicName",
-      "contentType",
+      "contentType"
     ];
     const missingFields = requiredFields.filter((field) => !req.body[field]);
 
@@ -359,7 +359,7 @@ async function generateAdaptiveContent(req, res) {
         success: false,
         message: "Missing required fields",
         requiredFields,
-        missingFields,
+        missingFields
       });
     }
 
@@ -375,7 +375,7 @@ async function generateAdaptiveContent(req, res) {
       contentDepth: depth,
       visualStyle: style,
       outputLanguage: language,
-      contentType: contentType,
+      contentType: contentType
     });
     console.log("Calling Anthropic API...");
 
@@ -386,7 +386,7 @@ async function generateAdaptiveContent(req, res) {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
         "anthropic-beta": "files-api-2025-04-14",
-        "content-type": "application/json",
+        "content-type": "application/json"
       },
       body: JSON.stringify({
         model: "claude-3-5-haiku-20241022",
@@ -397,20 +397,20 @@ async function generateAdaptiveContent(req, res) {
             content: [
               {
                 type: "text",
-                text: prompt,
+                text: prompt
               },
               {
                 type: "document",
                 source: {
                   type: "file",
-                  file_id: fileId,
-                },
-              },
-            ],
-          },
-        ],
+                  file_id: fileId
+                }
+              }
+            ]
+          }
+        ]
       }),
-      signal: controller.signal,
+      signal: controller.signal
     });
 
     clearTimeout(timeoutId);
@@ -421,7 +421,7 @@ async function generateAdaptiveContent(req, res) {
       return res.status(400).json({
         success: false,
         message: "Failed to generate adaptive content",
-        error: error.message || "API request failed",
+        error: error.message || "API request failed"
       });
     }
 
@@ -447,7 +447,7 @@ async function generateAdaptiveContent(req, res) {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
         "anthropic-beta": "files-api-2025-04-14",
-        "content-type": "application/json",
+        "content-type": "application/json"
       },
       body: JSON.stringify({
         model: "claude-3-5-haiku-20241022",
@@ -460,13 +460,13 @@ async function generateAdaptiveContent(req, res) {
                 type: "text",
                 text:
                   "Extract pure HTML content from the following text and return only the HTML content without any additional text or explanation:\n\n" +
-                  content,
-              },
-            ],
-          },
-        ],
+                  content
+              }
+            ]
+          }
+        ]
       }),
-      signal: controller.signal,
+      signal: controller.signal
     });
 
     clearTimeout(timeoutId);
@@ -477,7 +477,7 @@ async function generateAdaptiveContent(req, res) {
       return res.status(400).json({
         success: false,
         message: "Failed to extract HTML content",
-        error: error.message || "API request failed",
+        error: error.message || "API request failed"
       });
     }
 
@@ -501,7 +501,7 @@ async function generateAdaptiveContent(req, res) {
     const conversionController = new AbortController();
     const conversionTimeoutId = setTimeout(
       () => conversionController.abort(),
-      70000,
+      70000
     ); // 70 second timeout for conversion
 
     try {
@@ -510,14 +510,14 @@ async function generateAdaptiveContent(req, res) {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
             pages: 1,
-            htmlText: [htmlContent],
+            htmlText: [htmlContent]
           }),
-          signal: conversionController.signal,
-        },
+          signal: conversionController.signal
+        }
       );
 
       clearTimeout(conversionTimeoutId);
@@ -563,14 +563,14 @@ async function generateAdaptiveContent(req, res) {
         return res.status(504).json({
           success: false,
           message: "Image conversion timeout",
-          error: "The image conversion took too long. Please try again.",
+          error: "The image conversion took too long. Please try again."
         });
       }
 
       return res.status(500).json({
         success: false,
         message: "Failed to convert adaptive content to images",
-        error: conversionError.message,
+        error: conversionError.message
       });
     }
   } catch (error) {
@@ -582,7 +582,7 @@ async function generateAdaptiveContent(req, res) {
         success: false,
         message: "Request timeout",
         error:
-          "The adaptive content generation took too long. Please try again.",
+          "The adaptive content generation took too long. Please try again."
       });
     }
 

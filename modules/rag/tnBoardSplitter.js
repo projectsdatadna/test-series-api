@@ -20,7 +20,7 @@
  */
 function findUnitsWithKeyword(lines) {
   const unitMatches = [];
-  
+
   for (let i = 1; i < lines.length - 1; i++) {
     const line = lines[i].trim();
 
@@ -58,7 +58,7 @@ function findUnitsWithKeyword(lines) {
       }
     }
   }
-  
+
   return unitMatches;
 }
 
@@ -68,7 +68,7 @@ function findUnitsWithKeyword(lines) {
  */
 function findUnitsByNumberRepetition(lines) {
   const unitMatches = [];
-  
+
   for (let i = 0; i < lines.length - 50; i++) {
     const line = lines[i].trim();
     const numberMatch = line.match(/^(\d+)$/);
@@ -96,7 +96,7 @@ function findUnitsByNumberRepetition(lines) {
               unitTitle = titleLine;
             }
           }
-          
+
           console.log(`[RAG] Strategy 2 (Direct Chapter) - Found Unit ${unitNumber} at line ${i + 1}, title: "${unitTitle}"`);
           unitMatches.push({ unitNumber, unitTitle, lineIndex: i + 1 });
           continue; // Skip to next iteration, don't check pattern 2
@@ -151,7 +151,7 @@ function findUnitsByNumberRepetition(lines) {
       }
     }
   }
-  
+
   return unitMatches;
 }
 
@@ -161,16 +161,16 @@ function findUnitsByNumberRepetition(lines) {
 function findUnitsBySectionNumbers(lines) {
   const unitMatches = [];
   let currentUnit = 0;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     // Match "Section 1", "Section I", "Section One", etc.
     const sectionMatch = line.match(/^Section\s+(1|I|One)$/i);
-    
+
     if (sectionMatch) {
       currentUnit++;
-      
+
       // Find title in nearby lines
       let unitTitle = `Unit ${currentUnit}`;
       for (let j = Math.max(0, i - 10); j < Math.min(i + 10, lines.length); j++) {
@@ -185,12 +185,12 @@ function findUnitsBySectionNumbers(lines) {
           break;
         }
       }
-      
+
       console.log(`[RAG] Strategy 3 - Found Unit ${currentUnit} at line ${i}, title: "${unitTitle}"`);
       unitMatches.push({ unitNumber: currentUnit, unitTitle, lineIndex: i });
     }
   }
-  
+
   return unitMatches;
 }
 
@@ -207,19 +207,19 @@ function splitByUnits(text) {
   // Try Strategy 1: "Unit" keyword
   console.log('[RAG] Trying Strategy 1: Unit keyword detection');
   unitMatches = findUnitsWithKeyword(lines);
-  
+
   if (unitMatches.length === 0) {
     // Try Strategy 2: Number repetition before "Prose"
     console.log('[RAG] Strategy 1 failed, trying Strategy 2: Number repetition');
     unitMatches = findUnitsByNumberRepetition(lines);
   }
-  
+
   if (unitMatches.length === 0) {
     // Try Strategy 3: Section numbers
     console.log('[RAG] Strategy 2 failed, trying Strategy 3: Section numbers');
     unitMatches = findUnitsBySectionNumbers(lines);
   }
-  
+
   if (unitMatches.length === 0) {
     // Last resort: Split by page count (assume 30-50 pages per unit)
     console.log('[RAG] All strategies failed, using fallback: page-based splitting');
@@ -239,7 +239,7 @@ function splitByUnits(text) {
   const uniqueUnits = new Map();
   unitMatches.forEach(unit => uniqueUnits.set(unit.unitNumber, unit));
   const filteredMatches = Array.from(uniqueUnits.values()).sort((a, b) => a.lineIndex - b.lineIndex);
-  
+
   console.log(`[RAG] tnBoardSplitter - After removing duplicates: ${filteredMatches.length} unique units`);
 
   if (filteredMatches.length === 0) {
@@ -254,17 +254,17 @@ function splitByUnits(text) {
     const nextUnitLineIndex = i < filteredMatches.length - 1 ? filteredMatches[i + 1].lineIndex : lines.length;
 
     let contentStartLine = currentUnit.lineIndex + 1;
-    
+
     // Skip the title line if it's just a number
     if (contentStartLine < lines.length && lines[contentStartLine].trim().match(/^\d+$/)) {
       contentStartLine++;
     }
-    
+
     // For Mathematics books: Check if there's a X.1 Introduction section BEFORE the Chapter marker
     // This happens when Introduction appears before the Chapter title in the PDF
     const prevUnitLineIndex = i > 0 ? filteredMatches[i - 1].lineIndex : 0;
     const introPattern = new RegExp(`^${currentUnit.unitNumber}\\.1\\s+Introduction`, 'i');
-    
+
     // Look backwards from Chapter marker to find Introduction section
     for (let j = currentUnit.lineIndex - 1; j >= prevUnitLineIndex; j--) {
       const line = lines[j].trim();
@@ -303,16 +303,16 @@ function splitByUnits(text) {
  */
 function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) {
   const sectionMatches = [];
-  
+
   // Check if this is a Mathematics book
   const isMathsBook = subjectId && (subjectId.includes('MAT') || subjectId.includes('MATH'));
-  
+
   // For Maths books, don't use "Chapter" as a section marker (it's a unit marker)
   // For other books, include "Chapter" as a section marker
-  const markerPattern = isMathsBook 
+  const markerPattern = isMathsBook
     ? /^(Prose|Poem|Supplementary|Play)$/i
     : /^(Prose|Poem|Supplementary|Play|Chapter)$/i;
-  
+
   // Find the FIRST actual Prose section (skip content table)
   // Content table is typically in first 300-400 lines, actual content starts after
   let proseLineIndex = -1;
@@ -322,7 +322,7 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
       break;
     }
   }
-  
+
   // If no Prose found after line 300, search from beginning
   if (proseLineIndex === -1) {
     for (let i = 0; i < lines.length; i++) {
@@ -332,9 +332,9 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
       }
     }
   }
-  
+
   const startLine = proseLineIndex >= 0 ? proseLineIndex : 0;
-  
+
   for (let i = startLine; i < lines.length; i++) {
     const line = lines[i].trim();
     const sectionMatch = line.match(markerPattern);
@@ -342,11 +342,11 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
     if (sectionMatch) {
       const sectionType = sectionMatch[1].toLowerCase();
       let sectionTitle = sectionType.charAt(0).toUpperCase() + sectionType.slice(1);
-      
+
       // PRIORITY 1: Check the line IMMEDIATELY before the marker (most common pattern)
       if (i > 0) {
         const prevLine = lines[i - 1].trim();
-        
+
         // Check if it's a valid title (not a number, not empty, reasonable length)
         if (prevLine &&
             !prevLine.match(/^\d+$/) &&                                    // Not just a number
@@ -357,17 +357,17 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
             !prevLine.match(/^(WARM UP|GLOSSARY|ICT Corner|VOCABULARY)$/i) && // Not activity headers
             prevLine.length >= 5 &&                                        // Not too short
             prevLine.length <= 100) {                                      // Not too long
-          
+
           // Clean the title
           const cleanTitle = prevLine.replace(/^\*+/, '').trim();
-          
+
           // Additional validation: should look like a title
           const hasProperCapitalization = cleanTitle[0] === cleanTitle[0].toUpperCase();
           const notASentence = !cleanTitle.match(/^(Let's|I |You |We |They |He |She |It |This |That |The |A |An |How |What |Why |When |Where |Who )/i);
           const notAnAuthor = !cleanTitle.match(/^(Raj Arumugam|Lewis Carroll|Sara Coleridge|Ruskin Bond|Roald Dahl|R\.K\. Narayan|William Makepeace Thackeray|Nisha Dyrene|Savita Singh)$/i);
           const notADescription = !cleanTitle.match(/(appears in it|based on|written by|adapted|translated|retold)/i);
           const notAQuestion = !cleanTitle.match(/\?$/);
-          
+
           if (hasProperCapitalization && notASentence && notAnAuthor && notADescription && notAQuestion) {
             sectionTitle = cleanTitle;
             console.log(`[RAG] Found title for ${sectionType} at line ${i} (line before marker): "${sectionTitle}"`);
@@ -376,12 +376,12 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
           }
         }
       }
-      
+
       // PRIORITY 2: Look for title in lines 2-15 before the marker
       const potentialTitles = [];
       for (let j = i - 2; j >= Math.max(0, i - 15); j--) {
         const titleLine = lines[j].trim();
-        
+
         // Skip invalid lines
         if (!titleLine ||
             titleLine.match(/^\d+$/) ||                                    // Just numbers
@@ -402,26 +402,26 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
             titleLine.length > 100) {                                     // Too long
           continue;
         }
-        
+
         // Clean the title
         const cleanTitle = titleLine.replace(/^\*+/, '').trim();
-        
+
         // Check if it looks like a proper title (mostly title case or all caps)
         const wordCount = cleanTitle.split(/\s+/).length;
-        const capitalizedWords = cleanTitle.split(/\s+/).filter(word => 
+        const capitalizedWords = cleanTitle.split(/\s+/).filter(word =>
           word.length > 0 && (word[0] === word[0].toUpperCase() || word === word.toUpperCase())
         ).length;
-        
+
         // If most words are capitalized, it's likely a title
         if (capitalizedWords >= Math.max(1, wordCount * 0.5)) {
-          potentialTitles.push({ 
-            title: cleanTitle, 
+          potentialTitles.push({
+            title: cleanTitle,
             distance: i - j,
             capitalRatio: capitalizedWords / wordCount
           });
         }
       }
-      
+
       // Choose the best title: prefer closer titles with high capital ratio
       if (potentialTitles.length > 0) {
         // Sort by distance (closer is better) and capital ratio (higher is better)
@@ -431,7 +431,7 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
           }
           return a.distance - b.distance; // Otherwise prefer closer
         });
-        
+
         sectionTitle = potentialTitles[0].title;
         console.log(`[RAG] Found title for ${sectionType} at line ${i} (fallback search): "${sectionTitle}" at distance ${potentialTitles[0].distance}`);
       } else {
@@ -441,7 +441,7 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
       sectionMatches.push({ type: sectionType, title: sectionTitle, lineIndex: i });
     }
   }
-  
+
   return sectionMatches;
 }
 
@@ -453,25 +453,25 @@ function splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId = null) 
  */
 function splitBySectionNumbers(lines, unitNumber, subjectId = null) {
   const sectionMatches = [];
-  
+
   // Check if this is a Mathematics book - only then use decimal section numbers
   const isMathsBook = subjectId && (subjectId.includes('MAT') || subjectId.includes('MATH'));
-  
+
   // Pattern 1: Decimal section numbers (e.g., "1.1 Introduction", "1.2 Formation")
   // This is ONLY for Mathematics books
   if (isMathsBook) {
     console.log(`[RAG] Mathematics book detected (${subjectId}), using decimal section number detection`);
     const decimalPattern = new RegExp(`^${unitNumber}\\.(\\d+)\\s+(.+)$`);
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       // Check for decimal section numbers (X.Y Title)
       const decimalMatch = line.match(decimalPattern);
       if (decimalMatch) {
         const sectionNum = parseInt(decimalMatch[1]);
         const title = decimalMatch[2].trim();
-        
+
         // Validate title (not too short, not too long, not just numbers)
         if (title.length > 3 && title.length < 100 && !title.match(/^\d+$/)) {
           console.log(`[RAG] Found section ${unitNumber}.${sectionNum}: "${title}" at line ${i}`);
@@ -484,19 +484,19 @@ function splitBySectionNumbers(lines, unitNumber, subjectId = null) {
         }
       }
     }
-    
+
     // If we found decimal sections, return them
     if (sectionMatches.length > 0) {
       console.log(`[RAG] Found ${sectionMatches.length} decimal section numbers for Maths book`);
       return sectionMatches;
     }
   }
-  
+
   // Pattern 2: "Section 1", "Section 2" format (for all books)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     const sectionMatch = line.match(/^Section\s+(\d+|I{1,3}|One|Two|Three)$/i);
-    
+
     if (sectionMatch) {
       let sectionNum = 1;
       const numStr = sectionMatch[1];
@@ -508,7 +508,7 @@ function splitBySectionNumbers(lines, unitNumber, subjectId = null) {
         const wordMap = { 'one': 1, 'two': 2, 'three': 3 };
         sectionNum = wordMap[numStr.toLowerCase()] || 1;
       }
-      
+
       // Find title
       let sectionTitle = `Section ${sectionNum}`;
       for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
@@ -519,7 +519,7 @@ function splitBySectionNumbers(lines, unitNumber, subjectId = null) {
           break;
         }
       }
-      
+
       console.log(`[RAG] Found section ${sectionNum}: "${sectionTitle}" at line ${i}`);
       sectionMatches.push({
         type: 'section',
@@ -529,7 +529,7 @@ function splitBySectionNumbers(lines, unitNumber, subjectId = null) {
       });
     }
   }
-  
+
   return sectionMatches;
 }
 
@@ -540,12 +540,12 @@ function splitByContentLength(content, unitNumber, chunkCount = 3) {
   const lines = content.split('\n');
   const chunkSize = Math.floor(lines.length / chunkCount);
   const sections = [];
-  
+
   for (let i = 0; i < chunkCount; i++) {
     const startLine = i * chunkSize;
     const endLine = i === chunkCount - 1 ? lines.length : (i + 1) * chunkSize;
     const sectionContent = lines.slice(startLine, endLine).join('\n').trim();
-    
+
     sections.push({
       type: 'content',
       title: `Part ${i + 1}`,
@@ -553,7 +553,7 @@ function splitByContentLength(content, unitNumber, chunkCount = 3) {
       content: sectionContent
     });
   }
-  
+
   return sections;
 }
 
@@ -574,7 +574,7 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
   // If custom titles are provided, use them directly
   if (customTitles && Array.isArray(customTitles) && customTitles.length > 0) {
     console.log(`[RAG] Using custom section titles for Unit ${unitNumber}:`, customTitles);
-    
+
     // Find section markers and assign custom titles
     const markers = [];
     for (let i = 0; i < lines.length; i++) {
@@ -583,21 +583,21 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
         markers.push({ lineIndex: i, type: line.toLowerCase() });
       }
     }
-    
+
     console.log(`[RAG] Found ${markers.length} section markers for Unit ${unitNumber}`);
-    
+
     // If no markers found but custom titles provided, split content equally
     if (markers.length === 0) {
       console.log(`[RAG] No section markers found, splitting content equally for ${customTitles.length} sections`);
-      
+
       const chunkSize = Math.floor(lines.length / customTitles.length);
       const sections = [];
-      
+
       for (let i = 0; i < customTitles.length; i++) {
         const startLine = i * chunkSize;
         const endLine = i === customTitles.length - 1 ? lines.length : (i + 1) * chunkSize;
         const sectionContent = lines.slice(startLine, endLine).join('\n').trim();
-        
+
         sections.push({
           sectionNumber: `${unitNumber}.${i + 1}`,
           sectionTitle: customTitles[i],
@@ -606,23 +606,23 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
           contentLength: sectionContent.length,
           unitNumber: unitNumber
         });
-        
+
         console.log(`[RAG] Section ${unitNumber}.${i + 1}: "${customTitles[i]}" (content), ${sectionContent.length} chars`);
       }
-      
+
       console.log(`[RAG] tnBoardSplitter - splitBySections COMPLETE: ${sections.length} sections with custom titles (no markers)`);
       return sections;
     }
-    
+
     // Assign custom titles to markers
     const sections = [];
     for (let i = 0; i < Math.min(markers.length, customTitles.length); i++) {
       const marker = markers[i];
       const nextMarkerLineIndex = i < markers.length - 1 ? markers[i + 1].lineIndex : lines.length;
-      
+
       const contentStartLine = marker.lineIndex + 1;
       const sectionContent = lines.slice(contentStartLine, nextMarkerLineIndex).join('\n').trim();
-      
+
       sections.push({
         sectionNumber: `${unitNumber}.${i + 1}`,
         sectionTitle: customTitles[i],
@@ -631,10 +631,10 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
         contentLength: sectionContent.length,
         unitNumber: unitNumber
       });
-      
+
       console.log(`[RAG] Section ${unitNumber}.${i + 1}: "${customTitles[i]}" (${marker.type}), ${sectionContent.length} chars`);
     }
-    
+
     console.log(`[RAG] tnBoardSplitter - splitBySections COMPLETE: ${sections.length} sections with custom titles`);
     return sections;
   }
@@ -642,18 +642,18 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
   // Try Strategy 1: Standard markers (Prose/Poem/Supplementary)
   console.log('[RAG] Trying section Strategy 1: Standard markers');
   sectionMatches = splitByStandardMarkers(lines, unitNumber, unitTitle, subjectId);
-  
+
   if (sectionMatches.length === 0) {
     // Try Strategy 2: Section numbers (prioritize for Maths books)
     console.log('[RAG] Section Strategy 1 failed, trying Strategy 2: Section numbers');
     sectionMatches = splitBySectionNumbers(lines, unitNumber, subjectId);
   }
-  
+
   if (sectionMatches.length === 0) {
     // Try Strategy 3: Content-based splitting
     console.log('[RAG] Section Strategy 2 failed, using Strategy 3: Content-based splitting');
     const contentSections = splitByContentLength(content, unitNumber, 3);
-    
+
     return contentSections.map((section, index) => ({
       sectionNumber: `${unitNumber}.${index + 1}`,
       sectionTitle: section.title,
@@ -671,7 +671,7 @@ function splitBySections(content, unitNumber, unitTitle = null, customTitles = n
   const filteredMatches = sectionMatches.filter(section => {
     // For decimal section numbers (1.1, 1.2), use sectionNum as key
     const key = section.sectionNum !== undefined ? section.sectionNum : section.type;
-    
+
     if (seenSections.has(key)) {
       console.log(`[RAG] tnBoardSplitter - Skipping duplicate section ${key}`);
       return false;

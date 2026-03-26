@@ -33,8 +33,8 @@ const createResponse = (statusCode, body) => {
 const createAuditLog = async (userId, action, details, event) => {
   try {
     const logId = uuidv4();
-    const ipAddress = event?.headers?.['X-Forwarded-For'] || 
-                     event?.headers?.['x-forwarded-for'] || 
+    const ipAddress = event?.headers?.['X-Forwarded-For'] ||
+                     event?.headers?.['x-forwarded-for'] ||
                      'Unknown';
 
     await dynamoDB.put({
@@ -924,9 +924,9 @@ async function getLearningAnalytics(event) {
       byCourse: {},
 
       timeDistribution: {},
-      
+
       topMaterials: {},
-      
+
       userEngagement: {}
     };
 

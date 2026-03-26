@@ -30,7 +30,7 @@ async function generatePresignedUrl(req, res) {
     const bucketName = process.env.S3_UPLOAD_BUCKET || 'test-api-uploads-ap-south-1';
     const userId = req.user?.userId || 'anonymous';
     const timestamp = Date.now();
-    
+
     // Create unique key with user ID and timestamp
     const fileKey = `uploads/${userId}/${timestamp}-${fileName}`;
 

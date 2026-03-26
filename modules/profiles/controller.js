@@ -33,7 +33,7 @@ const createResponse = (statusCode, body) => {
 const isValidDate = (dateString) => {
   const regex = /^\d{4}-\d{2}-\d{2}$/;
   if (!regex.test(dateString)) return false;
-  
+
   const date = new Date(dateString);
   return date instanceof Date && !isNaN(date);
 };
@@ -44,11 +44,11 @@ const calculateAge = (dob) => {
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-  
+
   return age;
 };
 
@@ -142,17 +142,17 @@ async function createProfile(event) {
     // If profile exists, update it instead of creating new
     if (existingProfile.Items && existingProfile.Items.length > 0) {
       const existingProfileId = existingProfile.Items[0].profile_id;
-      
+
       // Remove profile_id and created_at from update as they shouldn't change
       delete profile.profile_id;
       delete profile.created_at;
-      
+
       // Build update expression
       let updateExpression = 'SET updated_at = :updated_at';
       const expressionAttributeValues = {
         ':updated_at': timestamp
       };
-      
+
       // Dynamically add fields that have values
       Object.keys(profile).forEach(key => {
         if (profile[key] !== null && key !== 'user_id') {
@@ -160,7 +160,7 @@ async function createProfile(event) {
           expressionAttributeValues[`:${key}`] = profile[key];
         }
       });
-      
+
       await dynamoDB.update({
         TableName: USER_PROFILES_TABLE,
         Key: { profile_id: existingProfileId },
@@ -168,13 +168,13 @@ async function createProfile(event) {
         ExpressionAttributeValues: expressionAttributeValues,
         ReturnValues: 'ALL_NEW'
       }).promise();
-      
+
       // Get updated profile
       const updatedProfile = await dynamoDB.get({
         TableName: USER_PROFILES_TABLE,
         Key: { profile_id: existingProfileId }
       }).promise();
-      
+
       return createResponse(200, {
         success: true,
         message: 'Profile updated successfully',
@@ -332,9 +332,9 @@ async function updateProfile(event) {
     }
 
     const updates = JSON.parse(event.body);
-    
+
     // Updated validation to include all fields
-    if (!updates.phone && !updates.address && !updates.dob && !updates.gender && 
+    if (!updates.phone && !updates.address && !updates.dob && !updates.gender &&
         !updates.profile_pic_url && !updates.bio && !updates.name && !updates.email &&
         !updates.userType && !updates.schoolName && !updates.standard &&
         !updates.collegeName && !updates.degree && !updates.governmentExam) {
@@ -390,8 +390,8 @@ async function updateProfile(event) {
 
     // Updated fields that can be updated/created - ADD ALL FIELDS
     const allowedFields = [
-      'name', 'email', 'phone', 'address', 'dob', 'gender', 
-      'profile_pic_url', 'bio', 'userType', 'schoolName', 
+      'name', 'email', 'phone', 'address', 'dob', 'gender',
+      'profile_pic_url', 'bio', 'userType', 'schoolName',
       'standard', 'collegeName', 'degree', 'governmentExam'
     ];
 
@@ -413,7 +413,7 @@ async function updateProfile(event) {
       if (allowedFields.includes(key)) {
         updateExpression += `, #${key} = :${key}`;
         expressionAttributeNames[`#${key}`] = key;
-        
+
         // Handle special cases
         if (key === 'gender' && updates[key]) {
           expressionAttributeValues[`:${key}`] = updates[key].toLowerCase();
@@ -432,7 +432,7 @@ async function updateProfile(event) {
     }
 
     let result;
-    
+
     if (profileId) {
       // UPDATE existing profile
       const updateParams = {
@@ -448,7 +448,7 @@ async function updateProfile(event) {
     } else {
       // CREATE new profile
       profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const putParams = {
         TableName: USER_PROFILES_TABLE,
         Item: {
@@ -459,22 +459,22 @@ async function updateProfile(event) {
           ...updates
         }
       };
-      
+
       // Calculate age if dob provided
       if (updates.dob) {
         putParams.Item.age = calculateAge(updates.dob);
       }
-      
+
       // Normalize gender
       if (updates.gender) {
         putParams.Item.gender = updates.gender.toLowerCase();
       }
-      
+
       // Normalize userType
       if (updates.userType) {
         putParams.Item.userType = updates.userType.toLowerCase();
       }
-      
+
       result = await dynamoDB.put(putParams).promise();
       console.log('Profile created successfully:', profileId);
     }
@@ -903,7 +903,7 @@ async function getProfileStatistics(event) {
         hasProfilePicture: !!profile.profile_pic_url,
         hasBio: !!profile.bio,
         age: profile.age || null,
-        accountAge: userResult.Item?.created_at 
+        accountAge: userResult.Item?.created_at
           ? Math.floor((new Date() - new Date(userResult.Item.created_at)) / (1000 * 60 * 60 * 24))
           : null
       },

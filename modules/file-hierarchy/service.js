@@ -69,7 +69,7 @@ const getAllStandards = async () => {
         TableName: TABLES.STANDARDS
       })
     );
-    
+
     // Return all standards with their syllabusId included
     // Each standard item should have: standardId, standardName, syllabusId, linkedAt
     const standards = (result.Items || []).map(item => ({
@@ -78,7 +78,7 @@ const getAllStandards = async () => {
       syllabusId: item.syllabusId,
       linkedAt: item.linkedAt
     }));
-    
+
     return standards;
   } catch (error) {
     throw new Error(`Failed to fetch all standards: ${error.message}`);
@@ -140,38 +140,38 @@ const getAllSubjects = async () => {
     // Define subject availability by standard range
     const subjectsFor6to10 = ['SUB_TAM', 'SUB_ENG', 'SUB_MAT', 'SUB_SCI', 'SUB_SOC'];
     const subjectsFor11to12 = ['SUB_TAM', 'SUB_ENG', 'SUB_PHY', 'SUB_CHE', 'SUB_BIO', 'SUB_MAT', 'SUB_HIS', 'SUB_GEO', 'SUB_ECO', 'SUB_POL'];
-    
+
     // Fetch all subjects
     const result = await docClient.send(
       new ScanCommand({
         TableName: TABLES.SUBJECTS
       })
     );
-    
+
     const allSubjects = result.Items || [];
-    
+
     // Fetch all standards to create subject-standard relationships
     const standardsResult = await docClient.send(
       new ScanCommand({
         TableName: TABLES.STANDARDS
       })
     );
-    
+
     const allStandards = standardsResult.Items || [];
-    
+
     // Create subject-standard relationships
     const subjectStandardRelationships = [];
-    
+
     allStandards.forEach(standard => {
       const standardNum = parseInt(standard.standardId.split('_')[1]);
       let allowedSubjects = [];
-      
+
       if (standardNum >= 6 && standardNum <= 10) {
         allowedSubjects = subjectsFor6to10;
       } else if (standardNum >= 11 && standardNum <= 12) {
         allowedSubjects = subjectsFor11to12;
       }
-      
+
       // For each allowed subject, create a relationship entry
       allSubjects.forEach(subject => {
         if (allowedSubjects.includes(subject.subjectId)) {
@@ -184,7 +184,7 @@ const getAllSubjects = async () => {
         }
       });
     });
-    
+
     return subjectStandardRelationships;
   } catch (error) {
     throw new Error(`Failed to fetch all subjects: ${error.message}`);
@@ -307,25 +307,25 @@ const createChapter = async (subjectId, chapterName, fileId, syllabusId, standar
       standardId,
       linkedAt: new Date().toISOString()
     };
-    
+
     // Add division field if provided (for 9th and 10th English: Chapters, Poems, Workbook)
     if (division) {
       item.division = division;
       console.log('[HIERARCHY] Added division to item:', division);
     }
-    
+
     // Add term field if provided (for TN State Board: TERM_1, TERM_2, TERM_3)
     if (term) {
       item.term = term;
       console.log('[HIERARCHY] Added term to item:', term);
     }
-    
+
     console.log('[HIERARCHY] Final item to be stored:', JSON.stringify(item, null, 2));
-    
+
     await docClient.send(new PutCommand({ TableName: TABLES.CHAPTERS, Item: item }));
-    
+
     console.log('[HIERARCHY] Chapter created successfully with chapterId:', chapterId);
-    
+
     return item;
   } catch (error) {
     throw new Error(`Failed to create chapter: ${error.message}`);

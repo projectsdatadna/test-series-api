@@ -20,7 +20,7 @@ const auditMiddleware = (module, action) => {
 
       // Extract user ID from request (you may need to adjust this based on your auth setup)
       const userId = req.user?.userId || req.body?.userId || req.params?.userId || 'system';
-      
+
       // Determine status based on response
       const status = res.statusCode >= 200 && res.statusCode < 300 ? 'success' : 'failure';
 

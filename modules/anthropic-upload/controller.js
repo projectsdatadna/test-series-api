@@ -58,7 +58,7 @@ async function getUploadUrls(req, res) {
         const command = new PutObjectCommand({
           Bucket: BUCKET_NAME,
           Key: fileKey,
-          ContentType: file.contentType,
+          ContentType: file.contentType
         });
 
         const uploadUrl = await getSignedUrl(s3Client, command, {
@@ -83,7 +83,7 @@ async function getUploadUrls(req, res) {
 
     // Wait for all URLs to be generated in parallel
     const results = await Promise.all(uploadUrlPromises);
-    
+
     const duration = Date.now() - startTime;
     console.log(`[Anthropic Upload] Generated URLs in ${duration}ms`);
 

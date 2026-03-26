@@ -95,9 +95,9 @@ async function getLocalizedContentById(event) {
     const localizedId = event.pathParameters?.localizedId;
     if (!localizedId) return createResponse(400, { success: false, message: 'localizedId is required' });
 
-    const result = await dynamoDB.get({ 
-      TableName: LOCALIZED_CONTENT_TABLE, 
-      Key: { localized_id: localizedId } 
+    const result = await dynamoDB.get({
+      TableName: LOCALIZED_CONTENT_TABLE,
+      Key: { localized_id: localizedId }
     }).promise();
 
     if (!result.Item) return createResponse(404, { success: false, message: 'Localized content not found' });

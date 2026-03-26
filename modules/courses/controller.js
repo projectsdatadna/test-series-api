@@ -38,8 +38,8 @@ const createResponse = (statusCode, body) => {
 const createAuditLog = async (userId, action, details, event) => {
   try {
     const logId = uuidv4();
-    const ipAddress = event?.headers?.['X-Forwarded-For'] || 
-                     event?.headers?.['x-forwarded-for'] || 
+    const ipAddress = event?.headers?.['X-Forwarded-For'] ||
+                     event?.headers?.['x-forwarded-for'] ||
                      'Unknown';
 
     await dynamoDB.put({
@@ -415,7 +415,7 @@ async function updateCourse(event) {
       if (allowedFields.includes(key)) {
         updateExpression += `, #${key} = :${key}`;
         expressionAttributeNames[`#${key}`] = key;
-        
+
         // Handle lowercase for specific fields
         if (key === 'difficulty_level' || key === 'status') {
           expressionAttributeValues[`:${key}`] = updates[key].toLowerCase();

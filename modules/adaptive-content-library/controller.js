@@ -22,13 +22,13 @@ const createAdaptiveContent = async (req, res) => {
       images,
       htmlContent,
       jsonData,
-      metadata,
+      metadata
     } = req.body;
 
     if (!title || !contentType) {
       return res.status(400).json({
         success: false,
-        message: 'title and contentType are required',
+        message: 'title and contentType are required'
       });
     }
 
@@ -51,18 +51,18 @@ const createAdaptiveContent = async (req, res) => {
       images,
       htmlContent,
       jsonData,
-      metadata,
+      metadata
     });
 
     res.status(201).json({
       success: true,
       data: content,
-      message: 'Adaptive content created successfully',
+      message: 'Adaptive content created successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -78,12 +78,12 @@ const getAdaptiveContentByUser = async (req, res) => {
       success: true,
       data: contents,
       count: contents.length,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -97,7 +97,7 @@ const getAdaptiveContentById = async (req, res) => {
     if (!contentId) {
       return res.status(400).json({
         success: false,
-        message: 'contentId is required',
+        message: 'contentId is required'
       });
     }
 
@@ -106,19 +106,19 @@ const getAdaptiveContentById = async (req, res) => {
     if (!content) {
       return res.status(404).json({
         success: false,
-        message: 'Adaptive content not found',
+        message: 'Adaptive content not found'
       });
     }
 
     res.status(200).json({
       success: true,
       data: content,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -132,7 +132,7 @@ const getAdaptiveContentByStandard = async (req, res) => {
     if (!standardId) {
       return res.status(400).json({
         success: false,
-        message: 'standardId is required',
+        message: 'standardId is required'
       });
     }
 
@@ -142,12 +142,12 @@ const getAdaptiveContentByStandard = async (req, res) => {
       success: true,
       data: contents,
       count: contents.length,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -161,7 +161,7 @@ const getAdaptiveContentBySubject = async (req, res) => {
     if (!subjectId) {
       return res.status(400).json({
         success: false,
-        message: 'subjectId is required',
+        message: 'subjectId is required'
       });
     }
 
@@ -171,12 +171,12 @@ const getAdaptiveContentBySubject = async (req, res) => {
       success: true,
       data: contents,
       count: contents.length,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -190,7 +190,7 @@ const getAdaptiveContentByChapter = async (req, res) => {
     if (!chapterId) {
       return res.status(400).json({
         success: false,
-        message: 'chapterId is required',
+        message: 'chapterId is required'
       });
     }
 
@@ -200,12 +200,12 @@ const getAdaptiveContentByChapter = async (req, res) => {
       success: true,
       data: contents,
       count: contents.length,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -219,7 +219,7 @@ const getAdaptiveContentByType = async (req, res) => {
     if (!contentType) {
       return res.status(400).json({
         success: false,
-        message: 'contentType is required',
+        message: 'contentType is required'
       });
     }
 
@@ -229,12 +229,12 @@ const getAdaptiveContentByType = async (req, res) => {
       success: true,
       data: contents,
       count: contents.length,
-      message: 'Adaptive content fetched successfully',
+      message: 'Adaptive content fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -249,7 +249,7 @@ const updateAdaptiveContent = async (req, res) => {
     if (!contentId) {
       return res.status(400).json({
         success: false,
-        message: 'contentId is required',
+        message: 'contentId is required'
       });
     }
 
@@ -258,12 +258,12 @@ const updateAdaptiveContent = async (req, res) => {
     res.status(200).json({
       success: true,
       data: content,
-      message: 'Adaptive content updated successfully',
+      message: 'Adaptive content updated successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -277,7 +277,7 @@ const deleteAdaptiveContent = async (req, res) => {
     if (!contentId) {
       return res.status(400).json({
         success: false,
-        message: 'contentId is required',
+        message: 'contentId is required'
       });
     }
 
@@ -285,12 +285,12 @@ const deleteAdaptiveContent = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Adaptive content deleted successfully',
+      message: 'Adaptive content deleted successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -304,5 +304,5 @@ module.exports = {
   getAdaptiveContentByChapter,
   getAdaptiveContentByType,
   updateAdaptiveContent,
-  deleteAdaptiveContent,
+  deleteAdaptiveContent
 };

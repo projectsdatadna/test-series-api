@@ -210,7 +210,7 @@ async function deleteExam(event) {
   try {
     const examId = event.pathParameters?.examId;
     if (!examId) return createResponse(400, { success: false, message: 'examId is required' });
-    
+
     const params = {
       TableName: EXAMS_TABLE,
       Key: { exam_id: examId },

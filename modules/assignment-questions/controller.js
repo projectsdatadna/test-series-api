@@ -99,7 +99,7 @@ async function getAllQuestions(event) {
     // Assumes GSI assignmentId-index exists with partition key assignment_id
     const params = {
       TableName: ASSIGNMENT_QUESTIONS_TABLE,
-      IndexName: 'assignmentId-index', 
+      IndexName: 'assignmentId-index',
       KeyConditionExpression: 'assignment_id = :assignmentId',
       ExpressionAttributeValues: { ':assignmentId': assignmentId },
       Limit: limit

@@ -8,7 +8,7 @@ const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'ap-south-
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TABLES = {
-  ADAPTIVE_CONTENT_LIBRARY: process.env.ADAPTIVE_CONTENT_LIBRARY_TABLE || 'AdaptiveContentLibrary',
+  ADAPTIVE_CONTENT_LIBRARY: process.env.ADAPTIVE_CONTENT_LIBRARY_TABLE || 'AdaptiveContentLibrary'
 };
 
 // Create/Store generated adaptive content
@@ -31,7 +31,7 @@ const createAdaptiveContent = async (contentData) => {
       images,
       htmlContent,
       jsonData,
-      metadata,
+      metadata
     } = contentData;
 
     if (!contentId || !userId || !title || !contentType) {
@@ -58,7 +58,7 @@ const createAdaptiveContent = async (contentData) => {
       metadata: metadata || {},
       usedByClasses: 0,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     await docClient.send(new PutCommand({ TableName: TABLES.ADAPTIVE_CONTENT_LIBRARY, Item: item }));
@@ -75,7 +75,7 @@ const getAdaptiveContentByUser = async (userId) => {
       new QueryCommand({
         TableName: TABLES.ADAPTIVE_CONTENT_LIBRARY,
         KeyConditionExpression: 'userId = :userId',
-        ExpressionAttributeValues: { ':userId': userId },
+        ExpressionAttributeValues: { ':userId': userId }
       })
     );
     return result.Items || [];
@@ -90,7 +90,7 @@ const getAdaptiveContentById = async (contentId, userId) => {
     const result = await docClient.send(
       new GetCommand({
         TableName: TABLES.ADAPTIVE_CONTENT_LIBRARY,
-        Key: { contentId, userId },
+        Key: { contentId, userId }
       })
     );
     return result.Item || null;
@@ -109,8 +109,8 @@ const getAdaptiveContentByStandard = async (userId, standardId) => {
         FilterExpression: 'standardId = :standardId',
         ExpressionAttributeValues: {
           ':userId': userId,
-          ':standardId': standardId,
-        },
+          ':standardId': standardId
+        }
       })
     );
     return result.Items || [];
@@ -129,8 +129,8 @@ const getAdaptiveContentBySubject = async (userId, subjectId) => {
         FilterExpression: 'subjectId = :subjectId',
         ExpressionAttributeValues: {
           ':userId': userId,
-          ':subjectId': subjectId,
-        },
+          ':subjectId': subjectId
+        }
       })
     );
     return result.Items || [];
@@ -149,8 +149,8 @@ const getAdaptiveContentByChapter = async (userId, chapterId) => {
         FilterExpression: 'chapterId = :chapterId',
         ExpressionAttributeValues: {
           ':userId': userId,
-          ':chapterId': chapterId,
-        },
+          ':chapterId': chapterId
+        }
       })
     );
     return result.Items || [];
@@ -169,8 +169,8 @@ const getAdaptiveContentByType = async (userId, contentType) => {
         FilterExpression: 'contentType = :contentType',
         ExpressionAttributeValues: {
           ':userId': userId,
-          ':contentType': contentType,
-        },
+          ':contentType': contentType
+        }
       })
     );
     return result.Items || [];
@@ -190,7 +190,7 @@ const updateAdaptiveContent = async (contentId, userId, updateData) => {
     const updatedItem = {
       ...item,
       ...updateData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     await docClient.send(new PutCommand({ TableName: TABLES.ADAPTIVE_CONTENT_LIBRARY, Item: updatedItem }));
@@ -206,7 +206,7 @@ const deleteAdaptiveContent = async (contentId, userId) => {
     await docClient.send(
       new DeleteCommand({
         TableName: TABLES.ADAPTIVE_CONTENT_LIBRARY,
-        Key: { contentId, userId },
+        Key: { contentId, userId }
       })
     );
     return { success: true, message: 'Adaptive content deleted' };
@@ -224,5 +224,5 @@ module.exports = {
   getAdaptiveContentByChapter,
   getAdaptiveContentByType,
   updateAdaptiveContent,
-  deleteAdaptiveContent,
+  deleteAdaptiveContent
 };

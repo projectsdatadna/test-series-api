@@ -22,7 +22,7 @@ const verifyJWT = async (req, res, next) => {
     const verifier = CognitoJwtVerifier.create({
       userPoolId: process.env.USER_POOL_ID,
       tokenUse: 'access',
-      clientId: process.env.CLIENT_ID,
+      clientId: process.env.CLIENT_ID
     });
 
     const payload = await verifier.verify(token);

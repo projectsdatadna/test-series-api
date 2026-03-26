@@ -4,9 +4,9 @@ const handler = (controller) => async (req, res, next) => {
       body: JSON.stringify(req.body),
       pathParameters: req.params,
       queryStringParameters: req.query,
-      headers: req.headers,
+      headers: req.headers
     });
-    
+
     if (!result || !result.statusCode || !result.body) {
       console.error('[HANDLER] Invalid controller response:', result);
       return res.status(500).json({
@@ -14,7 +14,7 @@ const handler = (controller) => async (req, res, next) => {
         message: 'Internal server error - invalid response format'
       });
     }
-    
+
     res.status(result.statusCode).json(JSON.parse(result.body));
   } catch (error) {
     console.error('[HANDLER] Error executing controller:', {
@@ -22,7 +22,7 @@ const handler = (controller) => async (req, res, next) => {
       stack: error.stack,
       controller: controller.name
     });
-    
+
     // Pass to Express error handler
     next(error);
   }

@@ -3,7 +3,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const {
   DynamoDBDocumentClient,
   PutCommand,
-  QueryCommand,
+  QueryCommand
 } = require('@aws-sdk/lib-dynamodb');
 const { UpdateCommand, DeleteCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
@@ -11,7 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-east-1'
 });
 const ddb = DynamoDBDocumentClient.from(client);
 
@@ -29,14 +29,14 @@ router.post('/save', async (req, res) => {
       chapterId,
       chapterName,
       sectionNumber,
-      contentData,
+      contentData
     } = req.body;
 
     // ✅ Only userId and chapterId are required
     if (!userId?.trim() || !chapterId?.trim()) {
       return res.status(400).json({
         success: false,
-        error: 'userId and chapterId are required',
+        error: 'userId and chapterId are required'
       });
     }
 
@@ -53,7 +53,7 @@ router.post('/save', async (req, res) => {
       chapterName: chapterName || '',
       sectionNumber: sectionNumber || '',
       contentData,
-      generatedAt: new Date().toISOString(),
+      generatedAt: new Date().toISOString()
     };
 
     await ddb.send(new PutCommand({ TableName: TABLE, Item: item }));
@@ -61,7 +61,7 @@ router.post('/save', async (req, res) => {
     res.status(201).json({
       success: true,
       data: { contentId, generatedAt: item.generatedAt },
-      message: 'Content saved successfully',
+      message: 'Content saved successfully'
     });
   } catch (error) {
     console.error('Error saving generated content:', error);
@@ -83,7 +83,7 @@ router.get('/history', async (req, res) => {
       IndexName: 'userId-generatedAt-index',   // ✅ GSI on userId + generatedAt
       KeyConditionExpression: 'userId = :uid',
       ExpressionAttributeValues: { ':uid': userId },
-      ScanIndexForward: false,                 // newest first
+      ScanIndexForward: false                 // newest first
     });
 
     const response = await ddb.send(command);
@@ -127,8 +127,8 @@ router.put('/update-question', async (req, res) => {
       UpdateExpression: 'SET contentData.quiz = :q, updatedAt = :t',
       ExpressionAttributeValues: {
         ':q': updatedQuestions,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Question updated successfully' });
@@ -167,8 +167,8 @@ router.delete('/delete-question', async (req, res) => {
       UpdateExpression: 'SET contentData.quiz = :q, updatedAt = :t',
       ExpressionAttributeValues: {
         ':q': filteredQuestions,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Question deleted successfully' });
@@ -202,8 +202,8 @@ router.put('/update-explanation', async (req, res) => {
       ExpressionAttributeNames: { '#field': field },
       ExpressionAttributeValues: {
         ':val': value,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Explanation field updated successfully' });
@@ -251,8 +251,8 @@ router.delete('/delete-explanation-field', async (req, res) => {
       ExpressionAttributeNames: { '#field': field },
       ExpressionAttributeValues: {
         ':val': newValue,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Field deleted successfully' });
@@ -290,8 +290,8 @@ router.put('/update-step', async (req, res) => {
       UpdateExpression: 'SET contentData.steps.steps = :s, updatedAt = :t',
       ExpressionAttributeValues: {
         ':s': updatedSteps,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Step updated successfully' });
@@ -327,8 +327,8 @@ router.delete('/delete-step', async (req, res) => {
       UpdateExpression: 'SET contentData.steps.steps = :s, updatedAt = :t',
       ExpressionAttributeValues: {
         ':s': filteredSteps,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Step deleted successfully' });
@@ -366,8 +366,8 @@ router.put('/update-worksheet-activity', async (req, res) => {
       UpdateExpression: 'SET contentData.worksheet.activities = :a, updatedAt = :t',
       ExpressionAttributeValues: {
         ':a': updatedActivities,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Activity updated successfully' });
@@ -403,8 +403,8 @@ router.delete('/delete-worksheet-activity', async (req, res) => {
       UpdateExpression: 'SET contentData.worksheet.activities = :a, updatedAt = :t',
       ExpressionAttributeValues: {
         ':a': filtered,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Activity deleted successfully' });
@@ -442,8 +442,8 @@ router.put('/update-puzzle-clue', async (req, res) => {
       UpdateExpression: 'SET contentData.puzzle.clues = :c, updatedAt = :t',
       ExpressionAttributeValues: {
         ':c': updatedClues,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Clue updated successfully' });
@@ -479,8 +479,8 @@ router.delete('/delete-puzzle-clue', async (req, res) => {
       UpdateExpression: 'SET contentData.puzzle.clues = :c, updatedAt = :t',
       ExpressionAttributeValues: {
         ':c': filtered,
-        ':t': new Date().toISOString(),
-      },
+        ':t': new Date().toISOString()
+      }
     }));
 
     res.json({ success: true, message: 'Clue deleted successfully' });

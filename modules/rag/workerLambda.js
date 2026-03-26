@@ -1,11 +1,11 @@
 /**
  * Lambda Handler for RAG Background Worker
  * Deploy as a separate Lambda function triggered by CloudWatch Events
- * 
+ *
  * CloudWatch Event Rule:
  * - Rate: rate(5 minutes) or rate(10 minutes)
  * - Target: This Lambda function
- * 
+ *
  * Environment Variables:
  * - AWS_REGION: AWS region (default: ap-south-1)
  * - S3_BUCKET_NAME: S3 bucket for PDFs (default: test-series-books)

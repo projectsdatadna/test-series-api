@@ -304,7 +304,7 @@ module.exports = {
   deleteResult,
   getLeaderboard,
   getResultSummary,
-  exportResults,
+  exportResults
   // submitAnswer,
   // getUserAnswers,
   // updateAnswer,

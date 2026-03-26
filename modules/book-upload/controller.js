@@ -34,7 +34,7 @@ const uploadBookFile = async (req, res) => {
       console.error('❌ Validation failed - Missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'fileId, fileName, syllabusId, standardId, subjectId, and chapterName are all required',
+        message: 'fileId, fileName, syllabusId, standardId, subjectId, and chapterName are all required'
       });
     }
 
@@ -47,25 +47,25 @@ const uploadBookFile = async (req, res) => {
         'workbook': 'Workbook'
       };
       finalDivision = bookTypeMap[bookType.toLowerCase()];
-      
+
       if (!finalDivision) {
         console.error('❌ Validation failed - Invalid bookType');
         return res.status(400).json({
           success: false,
-          message: `bookType must be one of: main, supplementary, workbook`,
+          message: `bookType must be one of: main, supplementary, workbook`
         });
       }
       console.log(`[UPLOAD] Mapped bookType '${bookType}' to division '${finalDivision}'`);
     }
 
     // Validate division for 9th and 10th English
-    const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') && 
+    const isEnglish9or10 = (standardId === 'STD_9' || standardId === 'STD_10' || standardId === '9' || standardId === '10') &&
                            (subjectId === 'SUB_ENG' || subjectId === 'English');
     if (isEnglish9or10 && !finalDivision) {
       console.error('❌ Validation failed - division is required for 9th and 10th English');
       return res.status(400).json({
         success: false,
-        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)',
+        message: 'division or bookType is required for 9th and 10th English (Chapters, Poems, or Workbook)'
       });
     }
 
@@ -75,7 +75,7 @@ const uploadBookFile = async (req, res) => {
       console.error('❌ Validation failed - Invalid division value');
       return res.status(400).json({
         success: false,
-        message: `division must be one of: ${validDivisions.join(', ')}`,
+        message: `division must be one of: ${validDivisions.join(', ')}`
       });
     }
 
@@ -122,15 +122,15 @@ const uploadBookFile = async (req, res) => {
           division: finalDivision || null
         },
         chapter,
-        bookFile,
+        bookFile
       },
-      message: 'Book file uploaded and chapter created successfully',
+      message: 'Book file uploaded and chapter created successfully'
     });
   } catch (error) {
     console.error('❌ Error in uploadBookFile:', error.message);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -139,7 +139,7 @@ const uploadBookFile = async (req, res) => {
 const getDivisionsForEnglish = async (req, res) => {
   try {
     const { standardId, subjectId } = req.params;
-    
+
     // Only return divisions for 9th and 10th English
     if ((standardId === '9' || standardId === '10') && subjectId === 'English') {
       return res.status(200).json({
@@ -148,7 +148,7 @@ const getDivisionsForEnglish = async (req, res) => {
         message: 'Divisions fetched successfully'
       });
     }
-    
+
     return res.status(200).json({
       success: true,
       data: [],
@@ -167,21 +167,21 @@ const getChaptersForSubject = async (req, res) => {
   try {
     const { subjectId, standardId, syllabusId } = req.params;
     const { division } = req.query;
-    
+
     if (!subjectId || !standardId || !syllabusId) {
       return res.status(400).json({
         success: false,
         message: 'subjectId, standardId, and syllabusId are all required'
       });
     }
-    
+
     let chapters = await hierarchyService.getChaptersBySubject(subjectId, standardId, syllabusId);
-    
+
     // Filter by division if provided (for 9th and 10th English)
     if (division && (standardId === '9' || standardId === '10') && subjectId === 'English') {
       chapters = chapters.filter(ch => ch.division === division);
     }
-    
+
     res.status(200).json({
       success: true,
       data: chapters,
@@ -202,19 +202,19 @@ const getBookFilesForChapter = async (req, res) => {
     if (!chapterId) {
       return res.status(400).json({
         success: false,
-        message: 'chapterId is required',
+        message: 'chapterId is required'
       });
     }
     const bookFiles = await hierarchyService.getBookFilesByChapter(chapterId);
     res.status(200).json({
       success: true,
       data: bookFiles,
-      message: 'Book files fetched successfully',
+      message: 'Book files fetched successfully'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message
     });
   }
 };
@@ -227,7 +227,7 @@ const getAllBooks = async (req, res) => {
       success: true,
       data: books,
       count: books.length,
-      message: 'All books fetched successfully',
+      message: 'All books fetched successfully'
     });
   } catch (error) {
     res.status(500).json({

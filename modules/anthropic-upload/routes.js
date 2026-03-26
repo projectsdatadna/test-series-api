@@ -8,7 +8,7 @@ const router = express.Router();
 const verifyJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || req.headers.Authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -18,15 +18,15 @@ const verifyJWT = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     const verifier = CognitoJwtVerifier.create({
       userPoolId: process.env.USER_POOL_ID,
       tokenUse: 'access',
-      clientId: process.env.CLIENT_ID,
+      clientId: process.env.CLIENT_ID
     });
 
     const payload = await verifier.verify(token);
-    
+
     req.user = {
       userId: payload.sub,
       username: payload.username,
@@ -38,7 +38,7 @@ const verifyJWT = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('JWT Verification Error:', error);
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -46,7 +46,7 @@ const verifyJWT = async (req, res, next) => {
         message: 'Your access token has expired. Please sign in again.'
       });
     }
-    
+
     return res.status(401).json({
       success: false,
       error: 'Invalid token',
@@ -64,7 +64,7 @@ router.post('/confirm-upload', verifyJWT, confirmUpload);
 // LEGACY: Keep old endpoint for backward compatibility (files < 5MB)
 // This will still work for small files
 const multer = require('multer');
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit for direct upload
 });

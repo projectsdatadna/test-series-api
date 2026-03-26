@@ -14,33 +14,33 @@ function splitEnglishBook(text, division) {
   console.log(`[RAG] splitEnglishBook - START with division: ${division}`);
 
   switch (division) {
-    case 'Chapters':
-      console.log('[RAG] splitEnglishBook - Calling splitMainBook');
-      const mainBookSections = splitMainBook(text);
-      console.log('[RAG] splitEnglishBook - splitMainBook returned:', mainBookSections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionType: s.sectionType
-      })));
-      return mainBookSections;
-    case 'Poems':
-      console.log('[RAG] splitEnglishBook - Calling splitPoemsBook');
-      const poemsBookSections = splitPoemsBook(text);
-      console.log('[RAG] splitEnglishBook - splitPoemsBook returned:', poemsBookSections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionType: s.sectionType
-      })));
-      return poemsBookSections;
-    case 'Workbook':
-      console.log('[RAG] splitEnglishBook - Calling splitWorkbook');
-      const workbookSections = splitWorkbook(text);
-      console.log('[RAG] splitEnglishBook - splitWorkbook returned:', workbookSections.map(s => ({
-        sectionNumber: s.sectionNumber,
-        sectionType: s.sectionType
-      })));
-      return workbookSections;
-    default:
-      console.warn(`[RAG] splitEnglishBook - Unknown division: ${division}, defaulting to main book splitting`);
-      return splitMainBook(text);
+  case 'Chapters':
+    console.log('[RAG] splitEnglishBook - Calling splitMainBook');
+    const mainBookSections = splitMainBook(text);
+    console.log('[RAG] splitEnglishBook - splitMainBook returned:', mainBookSections.map(s => ({
+      sectionNumber: s.sectionNumber,
+      sectionType: s.sectionType
+    })));
+    return mainBookSections;
+  case 'Poems':
+    console.log('[RAG] splitEnglishBook - Calling splitPoemsBook');
+    const poemsBookSections = splitPoemsBook(text);
+    console.log('[RAG] splitEnglishBook - splitPoemsBook returned:', poemsBookSections.map(s => ({
+      sectionNumber: s.sectionNumber,
+      sectionType: s.sectionType
+    })));
+    return poemsBookSections;
+  case 'Workbook':
+    console.log('[RAG] splitEnglishBook - Calling splitWorkbook');
+    const workbookSections = splitWorkbook(text);
+    console.log('[RAG] splitEnglishBook - splitWorkbook returned:', workbookSections.map(s => ({
+      sectionNumber: s.sectionNumber,
+      sectionType: s.sectionType
+    })));
+    return workbookSections;
+  default:
+    console.warn(`[RAG] splitEnglishBook - Unknown division: ${division}, defaulting to main book splitting`);
+    return splitMainBook(text);
   }
 }
 
@@ -58,7 +58,7 @@ function splitEnglishBook(text, division) {
 function splitMainBook(text) {
   console.log('[RAG] splitMainBook - START');
   const sections = [];
-  
+
   // Regex to find chapter headers: "1. Chapter Name", "2. Another Chapter", etc.
   const chapterRegex = /^\d+\.\s+[A-Z][^\n]*$/gm;
   const matches = [];

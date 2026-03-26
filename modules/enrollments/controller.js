@@ -33,8 +33,8 @@ const createResponse = (statusCode, body) => {
 const createAuditLog = async (userId, action, details, event) => {
   try {
     const logId = uuidv4();
-    const ipAddress = event?.headers?.['X-Forwarded-For'] || 
-                     event?.headers?.['x-forwarded-for'] || 
+    const ipAddress = event?.headers?.['X-Forwarded-For'] ||
+                     event?.headers?.['x-forwarded-for'] ||
                      'Unknown';
 
     await dynamoDB.put({
@@ -111,50 +111,50 @@ async function enrollInCourse(event) {
     }
 
     // Check for duplicate enrollment
- let params;
-if (courseId) {
-  // Query using partition and sort key in KeyConditionExpression
-  params = {
-    TableName: ENROLLMENTS_TABLE,
-    IndexName: 'userId-courseId-index',
-    KeyConditionExpression: 'user_id = :userId AND course_id = :courseId',
-    ExpressionAttributeValues: {
-      ':userId': userId,
-      ':courseId': courseId
-    },
-    Limit: 1
-  };
-} else if (examId) {
-  // If you don't have an index with exam_id as sort key,
-  // fall back to Scan with a filter expression (less optimal)
-  params = {
-    TableName: ENROLLMENTS_TABLE,
-    FilterExpression: 'user_id = :userId AND exam_id = :examId',
-    ExpressionAttributeValues: {
-      ':userId': userId,
-      ':examId': examId
-    },
-    Limit: 1
-  };
-} else {
-  return createResponse(400, {
-    success: false,
-    message: 'Either courseId or examId is required'
-  });
-}
+    let params;
+    if (courseId) {
+      // Query using partition and sort key in KeyConditionExpression
+      params = {
+        TableName: ENROLLMENTS_TABLE,
+        IndexName: 'userId-courseId-index',
+        KeyConditionExpression: 'user_id = :userId AND course_id = :courseId',
+        ExpressionAttributeValues: {
+          ':userId': userId,
+          ':courseId': courseId
+        },
+        Limit: 1
+      };
+    } else if (examId) {
+      // If you don't have an index with exam_id as sort key,
+      // fall back to Scan with a filter expression (less optimal)
+      params = {
+        TableName: ENROLLMENTS_TABLE,
+        FilterExpression: 'user_id = :userId AND exam_id = :examId',
+        ExpressionAttributeValues: {
+          ':userId': userId,
+          ':examId': examId
+        },
+        Limit: 1
+      };
+    } else {
+      return createResponse(400, {
+        success: false,
+        message: 'Either courseId or examId is required'
+      });
+    }
 
-// Execute the appropriate DynamoDB call
-const existingEnrollment = params.KeyConditionExpression 
-  ? await dynamoDB.query(params).promise() 
-  : await dynamoDB.scan(params).promise();
+    // Execute the appropriate DynamoDB call
+    const existingEnrollment = params.KeyConditionExpression
+      ? await dynamoDB.query(params).promise()
+      : await dynamoDB.scan(params).promise();
 
-if (existingEnrollment.Items && existingEnrollment.Items.length > 0) {
-  return createResponse(409, {
-    success: false,
-    message: 'User is already enrolled in this course/exam',
-    existingEnrollmentId: existingEnrollment.Items[0].enrollment_id
-  });
-}
+    if (existingEnrollment.Items && existingEnrollment.Items.length > 0) {
+      return createResponse(409, {
+        success: false,
+        message: 'User is already enrolled in this course/exam',
+        existingEnrollmentId: existingEnrollment.Items[0].enrollment_id
+      });
+    }
 
     const enrollmentId = uuidv4();
     const timestamp = new Date().toISOString();
@@ -182,10 +182,10 @@ if (existingEnrollment.Items && existingEnrollment.Items.length > 0) {
     }).promise();
 
     // Update user's enrolled courses/exams list
-    const updateExpression = courseId 
+    const updateExpression = courseId
       ? 'SET enrolledCourseIds = list_append(if_not_exists(enrolledCourseIds, :empty_list), :courseId)'
       : 'SET enrolledExamIds = list_append(if_not_exists(enrolledExamIds, :empty_list), :examId)';
-    
+
     const expressionValues = courseId
       ? { ':courseId': [courseId], ':empty_list': [] }
       : { ':examId': [examId], ':empty_list': [] };
@@ -938,19 +938,19 @@ async function getEnrollmentStatistics(event) {
       totalEnrollments: enrollments.length,
       activeEnrollments: enrollments.filter(e => e.is_active).length,
       inactiveEnrollments: enrollments.filter(e => !e.is_active).length,
-      
+
       byStatus: {
         notStarted: enrollments.filter(e => e.completion_status === 'not_started').length,
         inProgress: enrollments.filter(e => e.completion_status === 'in_progress').length,
         completed: enrollments.filter(e => e.completion_status === 'completed').length
       },
-      
+
       byType: {
         course: enrollments.filter(e => e.enrollment_type === 'course').length,
         exam: enrollments.filter(e => e.enrollment_type === 'exam').length,
         bundle: enrollments.filter(e => e.enrollment_type === 'bundle').length
       },
-      
+
       progressMetrics: {
         averageProgress: enrollments.length > 0
           ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / enrollments.length)
@@ -959,7 +959,7 @@ async function getEnrollmentStatistics(event) {
           ? Math.round((enrollments.filter(e => e.completion_status === 'completed').length / enrollments.length) * 100)
           : 0
       },
-      
+
       timeMetrics: {
         enrollmentsLast7Days: enrollments.filter(e => {
           const enrollDate = new Date(e.enrollment_date);
@@ -967,7 +967,7 @@ async function getEnrollmentStatistics(event) {
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
           return enrollDate >= sevenDaysAgo;
         }).length,
-        
+
         enrollmentsLast30Days: enrollments.filter(e => {
           const enrollDate = new Date(e.enrollment_date);
           const thirtyDaysAgo = new Date();

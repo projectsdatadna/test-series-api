@@ -85,7 +85,7 @@ async function getAllStandards(event) {
       params.ExclusiveStartKey = JSON.parse(Buffer.from(queryParams.lastKey, 'base64').toString());
     }
 
-    const result = courseId 
+    const result = courseId
       ? await dynamoDB.query(params).promise()
       : await dynamoDB.scan(params).promise();
 
