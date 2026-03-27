@@ -407,12 +407,12 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           // Use Hindi-specific splitting
           console.log(`[RAG] Using Hindi-specific splitting for ${standardId} ${subjectId}`);
 
-          if (syllabusId && syllabusId.toUpperCase().includes('NCERT')) {
-            console.log(`[RAG] Detected NCERT Hindi book, using heading-based splitting`);
-            sections = splitHindiBookByHeadings(text);
-          } else if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
+          if (sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0) {
             console.log(`[RAG] Using custom section titles for Hindi book: ${sectionTitles.length} sections`);
             sections = splitHindiBookWithTitles(text, sectionTitles);
+          } else if (syllabusId && syllabusId.toUpperCase().includes('NCERT')) {
+            console.log(`[RAG] Detected NCERT Hindi book, using heading-based splitting`);
+            sections = splitHindiBookByHeadings(text);
           } else {
             console.log(`[RAG] Using automatic Hindi book splitting`);
             sections = splitHindiBook(text);

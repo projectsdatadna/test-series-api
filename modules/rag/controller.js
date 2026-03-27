@@ -179,7 +179,14 @@ async function batchProcessFromS3(req, res) {
       try {
         // Map bookType to division if needed
         let finalDivision = division;
-        if (bookType && !division) {
+        const isEnglish = subjectId === 'SUB_ENG' || subjectId === 'English';
+        const isSocialScience = subjectId === 'SUB_SS' || subjectId === 'SUB_SOC' || subjectId === 'Social Science';
+        const isHindi = subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी';
+        const isHindi9 = isHindi && (standardId === 'STD_9' || standardId === '9');
+        const isHindi10 = isHindi && (standardId === 'STD_10' || standardId === '10');
+
+        if (bookType && !division && isEnglish) {
+          // English book type mapping
           const bookTypeMap = {
             'main': 'Chapters',
             'supplementary': 'Poems',
@@ -192,6 +199,70 @@ async function batchProcessFromS3(req, res) {
               documentId,
               success: false,
               error: 'bookType must be one of: main, supplementary, workbook'
+            });
+            continue;
+          }
+        } else if (bookType && !division && isSocialScience) {
+          // Social Science book part mapping
+          const socialSciencePartMap = {
+            'Part I': 'Part I',
+            'Part II': 'Part II',
+            'Contemporary India': 'Contemporary India',
+            'Economics': 'Economics',
+            'India and the Contemporary World': 'India and the Contemporary World',
+            'Democratic Politics': 'Democratic Politics'
+          };
+          finalDivision = socialSciencePartMap[bookType];
+          if (!finalDivision) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: 'bookType for Social Science must be one of: Part I, Part II, Contemporary India, Economics, India and the Contemporary World, Democratic Politics'
+            });
+            continue;
+          }
+        } else if (bookType && !division && isHindi9) {
+          // Hindi 9th standard book type mapping
+          const hindiBookTypeMap = {
+            'Sparsh': 'Sparsh',
+            'स्पर्श': 'Sparsh',
+            'Sanchayan': 'Sanchayan',
+            'संचयन': 'Sanchayan',
+            'Kshitij': 'Kshitij',
+            'क्षितिज': 'Kshitij',
+            'कृतिका': 'कृतिका',
+            'Kritika': 'कृतिका'
+          };
+          finalDivision = hindiBookTypeMap[bookType];
+          if (!finalDivision) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: 'bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका'
+            });
+            continue;
+          }
+        } else if (bookType && !division && isHindi10) {
+          // Hindi 10th standard book type mapping
+          const hindiBookTypeMap = {
+            'Sparsh': 'Sparsh',
+            'स्पर्श': 'Sparsh',
+            'Sanchayan': 'Sanchayan',
+            'संचयन': 'Sanchayan',
+            'Kshitij': 'Kshitij',
+            'क्षितिज': 'Kshitij',
+            'कृतिका': 'कृतिका',
+            'Kritika': 'कृतिका'
+          };
+          finalDivision = hindiBookTypeMap[bookType];
+          if (!finalDivision) {
+            results.push({
+              fileName,
+              documentId,
+              success: false,
+              error: 'bookType for 10th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका'
             });
             continue;
           }
@@ -230,7 +301,7 @@ async function batchProcessFromS3(req, res) {
         }
 
         // Validate division value
-        const validDivisions = ['Chapters', 'Poems', 'Workbook'];
+        const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
         if (finalDivision && !validDivisions.includes(finalDivision)) {
           results.push({
             fileName,
@@ -452,6 +523,7 @@ async function processRAGFileFromS3(req, res) {
     const isSocialScience = subjectId === 'SUB_SS' || subjectId === 'SUB_SOC' || subjectId === 'Social Science';
     const isHindi = subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी';
     const isHindi9 = isHindi && (standardId === 'STD_9' || standardId === '9');
+    const isHindi10 = isHindi && (standardId === 'STD_10' || standardId === '10');
 
     if (bookType && !division && isEnglish) {
       // English book type mapping
@@ -500,8 +572,8 @@ async function processRAGFileFromS3(req, res) {
         'संचयन': 'Sanchayan',
         'Kshitij': 'Kshitij',
         'क्षितिज': 'Kshitij',
-        'Malhaar': 'Malhaar',
-        'मल्हार': 'Malhaar'
+        'कृतिका': 'कृतिका',
+        'Kritika': 'कृतिका'
       };
 
       finalDivision = hindiBookTypeMap[bookType];
@@ -509,13 +581,35 @@ async function processRAGFileFromS3(req, res) {
       if (!finalDivision) {
         return res.status(400).json({
           success: false,
-          message: `bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), Malhaar (मल्हार)`
+          message: `bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका`
         });
       }
       console.log(`[RAG] Mapped Hindi 9th bookType '${bookType}' to division '${finalDivision}'`);
-    } else if (bookType && !isEnglish && !isSocialScience && !isHindi9) {
+    } else if (bookType && !division && isHindi10) {
+      // Hindi 10th standard book type mapping
+      const hindiBookTypeMap = {
+        'Sparsh': 'Sparsh',
+        'स्पर्श': 'Sparsh',
+        'Sanchayan': 'Sanchayan',
+        'संचयन': 'Sanchayan',
+        'Kshitij': 'Kshitij',
+        'क्षितिज': 'Kshitij',
+        'कृतिका': 'कृतिका',
+        'Kritika': 'कृतिका'
+      };
+
+      finalDivision = hindiBookTypeMap[bookType];
+
+      if (!finalDivision) {
+        return res.status(400).json({
+          success: false,
+          message: `bookType for 10th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका`
+        });
+      }
+      console.log(`[RAG] Mapped Hindi 10th bookType '${bookType}' to division '${finalDivision}'`);
+    } else if (bookType && !isEnglish && !isSocialScience && !isHindi9 && !isHindi10) {
       // For other subjects, bookType is ignored
-      console.log(`[RAG] bookType provided for non-English/non-Social-Science/non-Hindi-9th subject (${subjectId}), ignoring it`);
+      console.log(`[RAG] bookType provided for non-English/non-Social-Science/non-Hindi-9th/non-Hindi-10th subject (${subjectId}), ignoring it`);
     }
 
     // Detect TN State Board books
@@ -556,7 +650,15 @@ async function processRAGFileFromS3(req, res) {
     if (isHindi9 && !finalDivision) {
       return res.status(400).json({
         success: false,
-        message: 'division or bookType is required for 9th Hindi (Sparsh, Sanchayan, Kshitij, or Malhaar)'
+        message: 'division or bookType is required for 9th Hindi (Sparsh, Sanchayan, Kshitij, or कृतिका)'
+      });
+    }
+
+    // Validate division for 10th Hindi (using isHindi10 already declared above)
+    if (isHindi10 && !finalDivision) {
+      return res.status(400).json({
+        success: false,
+        message: 'division or bookType is required for 10th Hindi (Sparsh, Sanchayan, Kshitij, or कृतिका)'
       });
     }
 
@@ -575,7 +677,7 @@ async function processRAGFileFromS3(req, res) {
     }
 
     // Validate division value if provided
-    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'Malhaar'];
+    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,
@@ -1033,18 +1135,81 @@ async function queueProcessFromS3(req, res) {
     // Map bookType to division if provided
     let finalDivision = division;
     if (bookType && !division) {
-      const bookTypeMap = {
-        'main': 'Chapters',
-        'supplementary': 'Poems',
-        'workbook': 'Workbook'
-      };
-      finalDivision = bookTypeMap[bookType.toLowerCase()];
+      const isEnglish = subjectId === 'SUB_ENG' || subjectId === 'English';
+      const isSocialScience = subjectId === 'SUB_SS' || subjectId === 'SUB_SOC' || subjectId === 'Social Science';
+      const isHindi = subjectId === 'SUB_HIN' || subjectId === 'Hindi' || subjectId === 'हिंदी';
+      const isHindi9 = isHindi && (standardId === 'STD_9' || standardId === '9');
+      const isHindi10 = isHindi && (standardId === 'STD_10' || standardId === '10');
 
-      if (!finalDivision) {
-        return res.status(400).json({
-          success: false,
-          message: `bookType must be one of: main, supplementary, workbook`
-        });
+      if (isEnglish) {
+        const bookTypeMap = {
+          'main': 'Chapters',
+          'supplementary': 'Poems',
+          'workbook': 'Workbook'
+        };
+        finalDivision = bookTypeMap[bookType.toLowerCase()];
+
+        if (!finalDivision) {
+          return res.status(400).json({
+            success: false,
+            message: `bookType must be one of: main, supplementary, workbook`
+          });
+        }
+      } else if (isSocialScience) {
+        const socialSciencePartMap = {
+          'Part I': 'Part I',
+          'Part II': 'Part II',
+          'Contemporary India': 'Contemporary India',
+          'Economics': 'Economics',
+          'India and the Contemporary World': 'India and the Contemporary World',
+          'Democratic Politics': 'Democratic Politics'
+        };
+        finalDivision = socialSciencePartMap[bookType];
+
+        if (!finalDivision) {
+          return res.status(400).json({
+            success: false,
+            message: `bookType for Social Science must be one of: Part I, Part II, Contemporary India, Economics, India and the Contemporary World, Democratic Politics`
+          });
+        }
+      } else if (isHindi9) {
+        const hindiBookTypeMap = {
+          'Sparsh': 'Sparsh',
+          'स्पर्श': 'Sparsh',
+          'Sanchayan': 'Sanchayan',
+          'संचयन': 'Sanchayan',
+          'Kshitij': 'Kshitij',
+          'क्षितिज': 'Kshitij',
+          'कृतिका': 'कृतिका',
+          'Kritika': 'कृतिका'
+        };
+        finalDivision = hindiBookTypeMap[bookType];
+
+        if (!finalDivision) {
+          return res.status(400).json({
+            success: false,
+            message: `bookType for 9th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका`
+          });
+        }
+      } else if (isHindi10) {
+        const hindiBookTypeMap = {
+          'Sparsh': 'Sparsh',
+          'स्पर्श': 'Sparsh',
+          'Sanchayan': 'Sanchayan',
+          'संचयन': 'Sanchayan',
+          'Kshitij': 'Kshitij',
+          'क्षितिज': 'Kshitij',
+          'कृतिका': 'कृतिका',
+          'Kritika': 'कृतिका'
+        };
+        finalDivision = hindiBookTypeMap[bookType];
+
+        if (!finalDivision) {
+          return res.status(400).json({
+            success: false,
+            message: `bookType for 10th Hindi must be one of: Sparsh (स्पर्श), Sanchayan (संचयन), Kshitij (क्षितिज), कृतिका`
+          });
+        }
       }
     }
 
@@ -1076,7 +1241,7 @@ async function queueProcessFromS3(req, res) {
     }
 
     // Validate division value if provided
-    const validDivisions = ['Chapters', 'Poems', 'Workbook'];
+    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,
@@ -1085,7 +1250,7 @@ async function queueProcessFromS3(req, res) {
     }
 
     // Validate splitPattern if provided
-    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
     if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
       return res.status(400).json({
         success: false,

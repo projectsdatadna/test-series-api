@@ -5,6 +5,8 @@
  */
 
 // Hindi stop headings (exercises, activities, etc. to be removed)
+// NOTE: Core sections like भाषा की बात, रचना, प्रश्न, शब्दार्थ, व्याकरण have been removed
+// as they are essential content sections in Kshitij and other Hindi textbooks
 const HINDI_STOP_HEADINGS = [
   'पाठ से',
   'मेरी समझ से',
@@ -18,13 +20,8 @@ const HINDI_STOP_HEADINGS = [
   'सृजन',
   'खोजबीन',
   'अभ्यास',
-  'प्रश्न',
   'उत्तर दीजिए',
-  'भाषा की बात',
   'लेखक परिचय',
-  'शब्दार्थ',
-  'व्याकरण',
-  'रचना',
   'पाठ्यक्रम'
 ];
 
@@ -67,7 +64,13 @@ function cleanHindiText(text) {
  * @param {string} text - Text content
  * @returns {string} - Text with exercises removed
  */
-function removeExercises(text) {
+function removeExercises(text, skipRemoval = false) {
+  // If skipRemoval is true (when custom section titles are provided), don't remove exercises
+  if (skipRemoval) {
+    console.log('[Hindi Splitter] Skipping exercise removal - custom section titles provided');
+    return text;
+  }
+
   const lines = text.split('\n');
   let result = [];
   let skipMode = false;
@@ -469,8 +472,66 @@ function splitByHeadings(text, headings) {
 function splitHindiBookWithTitles(text, sectionTitles = []) {
   console.log(`[Hindi Splitter] Splitting with ${sectionTitles.length} custom section titles`);
 
+  const kru2uni = require('@anthro-ai/krutidev-unicode');
+
+  // Convert section titles from Kruti Dev to Unicode for storage
+  const convertedTitles = sectionTitles.map((title, index) => {
+    if (!title || typeof title !== 'string') return title;
+    const converted = kru2uni(title);
+    console.log(`[Hindi Splitter] Title ${index + 1}: "${title}" → "${converted}"`);
+    return converted;
+  });
+  console.log('[Hindi Splitter] Section titles after conversion:', convertedTitles);
+
   const cleanedText = cleanHindiText(text);
-  const textWithoutExercises = removeExercises(cleanedText);
+  const textWithoutExercises = removeExercises(cleanedText, true);
+
+  // Helper function to escape special regex characters
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Helper function to find title with fuzzy matching
+  function findTitleIndex(searchText, title, startIndex = 0) {
+    // First try exact match
+    let index = searchText.indexOf(title, startIndex);
+    if (index !== -1) {
+      console.log(`[Hindi Splitter] Found exact match for "${title}" at index ${index}`);
+      return index;
+    }
+
+    // Try with trimmed whitespace variations
+    const trimmedTitle = title.trim();
+    
+    // Search for the title with flexible whitespace (escape special regex chars first)
+    try {
+      const escapedTitle = escapeRegex(trimmedTitle);
+      const regex = new RegExp(escapedTitle.replace(/\s+/g, '\\s+'), 'g');
+      const match = regex.exec(searchText.substring(startIndex));
+      
+      if (match) {
+        const foundIndex = startIndex + match.index;
+        console.log(`[Hindi Splitter] Found fuzzy match for "${title}" at index ${foundIndex}`);
+        return foundIndex;
+      }
+    } catch (regexError) {
+      console.warn(`[Hindi Splitter] Regex error for fuzzy match: ${regexError.message}`);
+    }
+
+    // Try partial match (at least 70% of the title)
+    const minLength = Math.ceil(trimmedTitle.length * 0.7);
+    for (let len = trimmedTitle.length; len >= minLength; len--) {
+      const partial = trimmedTitle.substring(0, len);
+      const partialIndex = searchText.indexOf(partial, startIndex);
+      if (partialIndex !== -1) {
+        console.log(`[Hindi Splitter] Found partial match (${len}/${trimmedTitle.length} chars) for "${title}" at index ${partialIndex}`);
+        return partialIndex;
+      }
+    }
+
+    console.warn(`[Hindi Splitter] Section title not found (exact, fuzzy, or partial): "${title}"`);
+    return -1;
+  }
 
   const sections = [];
   let currentIndex = 0;
@@ -478,21 +539,28 @@ function splitHindiBookWithTitles(text, sectionTitles = []) {
 
   for (let i = 0; i < sectionTitles.length; i++) {
     const title = sectionTitles[i];
+    const convertedTitle = convertedTitles[i];
 
-    // Find the position of this title in the text
-    const titleIndex = textWithoutExercises.indexOf(title, currentIndex);
+    // Find the position of this title in the text (use original Kruti Dev title for searching)
+    const titleIndex = findTitleIndex(textWithoutExercises, title, currentIndex);
 
     if (titleIndex === -1) {
-      console.warn(`[Hindi Splitter] Section title not found: "${title}"`);
+      console.warn(`[Hindi Splitter] SKIPPING section ${i + 1}: Title not found: "${title}"`);
       continue;
     }
 
     // Find the start of next section or end of text
-    const nextTitleIndex = i < sectionTitles.length - 1
-      ? textWithoutExercises.indexOf(sectionTitles[i + 1], titleIndex + 1)
-      : textWithoutExercises.length;
+    let nextTitleIndex = textWithoutExercises.length;
+    
+    if (i < sectionTitles.length - 1) {
+      nextTitleIndex = findTitleIndex(textWithoutExercises, sectionTitles[i + 1], titleIndex + 1);
+      if (nextTitleIndex === -1) {
+        console.warn(`[Hindi Splitter] Next section title not found: "${sectionTitles[i + 1]}", using end of text`);
+        nextTitleIndex = textWithoutExercises.length;
+      }
+    }
 
-    const endIndex = nextTitleIndex === -1 ? textWithoutExercises.length : nextTitleIndex;
+    const endIndex = nextTitleIndex;
 
     // Extract section content (skip the title itself)
     const sectionContent = textWithoutExercises
@@ -502,7 +570,7 @@ function splitHindiBookWithTitles(text, sectionTitles = []) {
     if (sectionContent.length > 0) {
       sections.push({
         sectionNumber: sectionNumber,
-        sectionTitle: title,
+        sectionTitle: convertedTitle,
         sectionType: isPoem(sectionContent) ? 'poem' : 'story',
         content: sectionContent,
         metadata: {
@@ -511,6 +579,8 @@ function splitHindiBookWithTitles(text, sectionTitles = []) {
         }
       });
       sectionNumber = String(parseInt(sectionNumber) + 1);
+    } else {
+      console.warn(`[Hindi Splitter] Section ${i + 1} has empty content, skipping`);
     }
 
     currentIndex = endIndex;
