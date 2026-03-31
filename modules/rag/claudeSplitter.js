@@ -89,6 +89,105 @@ async function splitBookWithClaude(text, chapterName, metadata = {}) {
   }
 }
 
+/**
+ * Split TN State Board book using Claude API
+ * Calls Firebase endpoint specifically designed for TN books
+ * Handles Unit → Section hierarchy
+ *
+ * @param {string} text - The extracted PDF text
+ * @param {string} chapterName - Name of the book
+ * @param {object} metadata - Metadata (subjectId, standardId, syllabusId, term, etc.)
+ * @returns {Promise<Array>} Array of sections with sectionNumber, sectionTitle, content, sectionType
+ */
+async function splitTNBookWithClaude(text, chapterName, metadata = {}) {
+  try {
+    const firebaseApiUrl = process.env.FIREBASE_API_URL || 'http://localhost:5001/drivingschool-630d9/us-central1/api';
+
+    console.log('\n========== CLAUDE API - TN STATE BOARD SPLITTING START ==========');
+    console.log('[RAG] splitTNBookWithClaude - Calling Firebase API for TN book splitting');
+    console.log('[RAG] Firebase API URL:', firebaseApiUrl);
+    console.log('[RAG] Endpoint:', `${firebaseApiUrl}/book-upload/split-tn-sections`);
+    console.log('[RAG] Text length:', text.length, 'characters');
+    console.log('[RAG] Book name:', chapterName);
+    console.log('[RAG] Subject:', metadata.subjectId);
+    console.log('[RAG] Standard:', metadata.standardId);
+    console.log('[RAG] Syllabus:', metadata.syllabusId);
+    if (metadata.term) {
+      console.log('[RAG] Term:', metadata.term);
+    }
+
+    const payload = {
+      text: text,
+      chapterName: chapterName,
+      metadata: {
+        subjectId: metadata.subjectId,
+        standardId: metadata.standardId,
+        syllabusId: metadata.syllabusId,
+        bookType: metadata.bookType,
+        division: metadata.division,
+        term: metadata.term
+      }
+    };
+
+    console.log('[RAG] Request payload size:', JSON.stringify(payload).length, 'bytes');
+    console.log('[RAG] Text encoding: UTF-8');
+    console.log('[RAG] Sending request to Firebase API...');
+    console.log('[RAG] Timeout: 10 minutes (600000ms)');
+
+    const startTime = Date.now();
+
+    const response = await axios.post(
+      `${firebaseApiUrl}/book-upload/split-tn-sections`,
+      payload,
+      {
+        timeout: 600000, // 10 minutes timeout for Claude processing
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const elapsedTime = Date.now() - startTime;
+    console.log('[RAG] Firebase API response received in', elapsedTime, 'ms');
+    console.log('[RAG] Response status:', response.status);
+    console.log('[RAG] Response data keys:', Object.keys(response.data));
+
+    if (!response.data || !response.data.success) {
+      console.error('[RAG] Firebase API returned error:', response.data?.error || 'Unknown error');
+      console.error('[RAG] Full response:', JSON.stringify(response.data, null, 2));
+      throw new Error(response.data?.error || 'Firebase API returned error');
+    }
+
+    const sections = response.data.sections || [];
+
+    console.log('[RAG] splitTNBookWithClaude - Successfully split into ' + sections.length + ' sections');
+    console.log('[RAG] Sections breakdown:');
+    sections.forEach((s, idx) => {
+      console.log(`[RAG]   [${idx + 1}/${sections.length}] ${s.sectionNumber}: "${s.sectionTitle}" (${(s.content?.length || 0)} chars, type: ${s.sectionType})`);
+    });
+
+    console.log('========== CLAUDE API - TN STATE BOARD SPLITTING SUCCESS ==========\n');
+
+    return sections;
+
+  } catch (error) {
+    console.error('\n========== CLAUDE API - TN STATE BOARD SPLITTING ERROR ==========');
+    console.error('[RAG] Error in splitTNBookWithClaude:', error.message);
+    console.error('[RAG] Error code:', error.code);
+    console.error('[RAG] Error response status:', error.response?.status);
+    console.error('[RAG] Error response data:', JSON.stringify(error.response?.data, null, 2));
+    console.error('[RAG] Error config:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      dataLength: error.config?.data?.length
+    });
+    console.error('[RAG] Stack trace:', error.stack);
+    console.error('========== CLAUDE API - TN STATE BOARD SPLITTING FAILED ==========\n');
+    throw error;
+  }
+}
+
 module.exports = {
-  splitBookWithClaude
+  splitBookWithClaude,
+  splitTNBookWithClaude
 };

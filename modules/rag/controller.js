@@ -271,6 +271,37 @@ async function batchProcessFromS3(req, res) {
         // Detect TN State Board
         const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
 
+        // Normalize standardId to handle both STD_8 and STD_8_TN formats
+        const normalizeStandardId = (id) => {
+          if (!id) return id;
+          // Remove _TN suffix if present
+          return String(id).replace(/_TN$/, '');
+        };
+        const normalizedStandardId = normalizeStandardId(standardId);
+
+        // Normalize TN Social Science divisions to uppercase (for History, Geography, Civics, Economics)
+        if (isTNStateBoard && isSocialScience && finalDivision) {
+          const tnSocialScienceDivisionMap = {
+            'History': 'HISTORY',
+            'history': 'HISTORY',
+            'HISTORY': 'HISTORY',
+            'Geography': 'GEOGRAPHY',
+            'geography': 'GEOGRAPHY',
+            'GEOGRAPHY': 'GEOGRAPHY',
+            'Civics': 'CIVICS',
+            'civics': 'CIVICS',
+            'CIVICS': 'CIVICS',
+            'Economics': 'ECONOMICS',
+            'economics': 'ECONOMICS',
+            'ECONOMICS': 'ECONOMICS'
+          };
+          
+          if (tnSocialScienceDivisionMap[finalDivision]) {
+            console.log(`[BATCH] Normalized TN Social Science division '${finalDivision}' to '${tnSocialScienceDivisionMap[finalDivision]}'`);
+            finalDivision = tnSocialScienceDivisionMap[finalDivision];
+          }
+        }
+
         // Validate term for TN State Board
         if (isTNStateBoard && term) {
           const validTermsFrontend = ['Term I', 'Term II', 'Term III'];
@@ -301,7 +332,7 @@ async function batchProcessFromS3(req, res) {
         }
 
         // Validate division value
-        const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
+        const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका', 'HISTORY', 'GEOGRAPHY', 'CIVICS', 'ECONOMICS'];
         if (finalDivision && !validDivisions.includes(finalDivision)) {
           results.push({
             fileName,
@@ -313,7 +344,7 @@ async function batchProcessFromS3(req, res) {
         }
 
         // Validate splitPattern
-        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors'];
+        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
         if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
           results.push({
             fileName,
@@ -492,6 +523,7 @@ async function processRAGFileFromS3(req, res) {
       pageRanges,
       splitPattern,
       sectionTitles,
+      chapterSections,
       term,
       unitSectionTitles
     } = req.body;
@@ -506,6 +538,7 @@ async function processRAGFileFromS3(req, res) {
       chapterName,
       division,
       bookType,
+      chapterSections: chapterSections ? `PROVIDED (${chapterSections.length} sections)` : 'NOT PROVIDED',
       term: term || 'NOT PROVIDED',
       unitSectionTitles: unitSectionTitles ? 'PROVIDED' : 'NOT PROVIDED'
     });
@@ -616,6 +649,37 @@ async function processRAGFileFromS3(req, res) {
     const isTNStateBoard = syllabusId && syllabusId.toUpperCase().includes('TN');
     console.log(`[RAG] Detected TN State Board book: ${isTNStateBoard}, syllabusId: ${syllabusId}`);
 
+    // Normalize standardId to handle both STD_8 and STD_8_TN formats
+    const normalizeStandardId = (id) => {
+      if (!id) return id;
+      // Remove _TN suffix if present
+      return String(id).replace(/_TN$/, '');
+    };
+    const normalizedStandardId = normalizeStandardId(standardId);
+
+    // Normalize TN Social Science divisions to uppercase (for History, Geography, Civics, Economics)
+    if (isTNStateBoard && isSocialScience && finalDivision) {
+      const tnSocialScienceDivisionMap = {
+        'History': 'HISTORY',
+        'history': 'HISTORY',
+        'HISTORY': 'HISTORY',
+        'Geography': 'GEOGRAPHY',
+        'geography': 'GEOGRAPHY',
+        'GEOGRAPHY': 'GEOGRAPHY',
+        'Civics': 'CIVICS',
+        'civics': 'CIVICS',
+        'CIVICS': 'CIVICS',
+        'Economics': 'ECONOMICS',
+        'economics': 'ECONOMICS',
+        'ECONOMICS': 'ECONOMICS'
+      };
+      
+      if (tnSocialScienceDivisionMap[finalDivision]) {
+        console.log(`[RAG] Normalized TN Social Science division '${finalDivision}' to '${tnSocialScienceDivisionMap[finalDivision]}'`);
+        finalDivision = tnSocialScienceDivisionMap[finalDivision];
+      }
+    }
+
     // Validate term for TN State Board books
     if (isTNStateBoard) {
       if (term) {
@@ -663,11 +727,16 @@ async function processRAGFileFromS3(req, res) {
     }
 
     // Validate division for Social Science books
-    const isSocialScience7to10 = (standardId === 'STD_7' || standardId === 'STD_8' || standardId === 'STD_9' || standardId === 'STD_10' ||
-                                  standardId === '7' || standardId === '8' || standardId === '9' || standardId === '10') &&
+    const isSocialScience7to10 = (normalizedStandardId === 'STD_7' || normalizedStandardId === 'STD_8' || normalizedStandardId === 'STD_9' || normalizedStandardId === 'STD_10' ||
+                                  normalizedStandardId === '7' || normalizedStandardId === '8' || normalizedStandardId === '9' || normalizedStandardId === '10') &&
                                  (subjectId === 'SUB_SS' || subjectId === 'SUB_SOC' || subjectId === 'Social Science');
-    if (isSocialScience7to10 && !finalDivision) {
-      const validParts = standardId === 'STD_7' || standardId === 'STD_8' || standardId === '7' || standardId === '8'
+    
+    // For 8th Social Science TN State Board books, division comes from Claude API, so skip validation
+    const isTNSocialScience8 = isTNStateBoard && isSocialScience7to10 && 
+                               (normalizedStandardId === 'STD_8' || normalizedStandardId === '8');
+    
+    if (isSocialScience7to10 && !finalDivision && !isTNSocialScience8) {
+      const validParts = normalizedStandardId === 'STD_7' || normalizedStandardId === 'STD_8' || normalizedStandardId === '7' || normalizedStandardId === '8'
         ? 'Part I, Part II'
         : 'Contemporary India, Economics, India and the Contemporary World, Democratic Politics';
       return res.status(400).json({
@@ -675,9 +744,13 @@ async function processRAGFileFromS3(req, res) {
         message: `division or bookType is required for Social Science (${validParts})`
       });
     }
+    
+    if (isTNSocialScience8) {
+      console.log('[RAG] TN State Board 8th Social Science book detected - division will be passed from UI request');
+    }
 
     // Validate division value if provided
-    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
+    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका', 'HISTORY', 'GEOGRAPHY', 'CIVICS', 'ECONOMICS'];
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,
@@ -717,6 +790,39 @@ async function processRAGFileFromS3(req, res) {
           message: 'Each sectionTitle must be a non-empty string'
         });
       }
+    }
+
+    // Validate chapterSections if provided (for TN Math books - filter specific chapter sections)
+    if (chapterSections && Array.isArray(chapterSections) && chapterSections.length > 0) {
+      const invalidSections = chapterSections.filter(s => 
+        !s.chapterNumber || 
+        typeof s.chapterNumber !== 'number' ||
+        !Array.isArray(s.sections) ||
+        s.sections.length === 0
+      );
+
+      if (invalidSections.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each chapterSection must have chapterNumber (number) and sections (array of section numbers like [1, 2, 3])'
+        });
+      }
+
+      // Validate section numbers are numbers
+      for (const chapter of chapterSections) {
+        const invalidNums = chapter.sections.filter(s => typeof s !== 'number' && typeof s !== 'string');
+        if (invalidNums.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Chapter ${chapter.chapterNumber}: All section numbers must be numbers or strings (e.g., 1, 2, 3 or "1", "2", "3")`
+          });
+        }
+      }
+
+      console.log('[RAG] chapterSections validated:', chapterSections.map(c => ({
+        chapterNumber: c.chapterNumber,
+        sections: c.sections
+      })));
     }
 
     // Validate unitSectionTitles if provided (for TN State Board books)
@@ -859,6 +965,7 @@ async function processRAGFileFromS3(req, res) {
       pageRanges: pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0 ? pageRanges : null,
       splitPattern: splitPattern || 'regex_based',
       sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
+      chapterSections: chapterSections && Array.isArray(chapterSections) && chapterSections.length > 0 ? chapterSections : null,
       isTNStateBoard: isTNStateBoard,
       term: term || null,
       unitSectionTitles: unitSectionTitles || null
@@ -1241,7 +1348,7 @@ async function queueProcessFromS3(req, res) {
     }
 
     // Validate division value if provided
-    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका'];
+    const validDivisions = ['Chapters', 'Poems', 'Workbook', 'Part I', 'Part II', 'Contemporary India', 'Economics', 'India and the Contemporary World', 'Democratic Politics', 'Sparsh', 'Sanchayan', 'Kshitij', 'कृतिका', 'HISTORY', 'GEOGRAPHY', 'CIVICS', 'ECONOMICS'];
     if (finalDivision && !validDivisions.includes(finalDivision)) {
       return res.status(400).json({
         success: false,

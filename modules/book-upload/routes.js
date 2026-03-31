@@ -2,6 +2,7 @@
 
 const express = require('express');
 const controller = require('./controller');
+const tnStateBoard = require('./tn-state-board-controller');
 
 const router = express.Router();
 
@@ -28,5 +29,16 @@ router.get('/files/:chapterId', controller.getBookFilesForChapter);
 
 // Delete book file
 router.delete('/books/:bookId/:fileId', controller.deleteBook);
+
+// ========== TN STATE BOARD ROUTES ==========
+
+// Extract chapters from TN State Board book using AI
+router.post('/tn-state-board/extract-chapters', tnStateBoard.extractChapters);
+
+// Get extracted chapters for a book
+router.get('/tn-state-board/chapters/:syllabusId/:standardId/:subjectId', tnStateBoard.getExtractedChapters);
+
+// Get chapter details with sections
+router.get('/tn-state-board/chapters/:chapterId', tnStateBoard.getChapterDetails);
 
 module.exports = router;

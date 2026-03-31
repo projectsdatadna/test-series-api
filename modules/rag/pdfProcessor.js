@@ -112,10 +112,153 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     // Check if this is TN State Board book - use specialized splitting
     if (isTNStateBoard) {
       console.log('[RAG] processPDFToSections - Detected TN State Board book');
+      console.log('[RAG] processPDFToSections - Subject:', subjectId);
+      console.log('[RAG] processPDFToSections - Standard:', standardId);
+      console.log('[RAG] processPDFToSections - Division from request:', division);
       if (term) {
         console.log(`[RAG] processPDFToSections - Processing ${term}`);
       }
-      const { splitByUnits, splitBySections } = require('./tnBoardSplitter');
+      
+      // Normalize standardId to handle both STD_8 and STD_8_TN formats
+      const normalizeStandardId = (id) => {
+        if (!id) return id;
+        return String(id).replace(/_TN$/, '');
+      };
+      const normalizedStandardId = normalizeStandardId(standardId);
+      console.log('[RAG] processPDFToSections - Normalized standardId:', normalizedStandardId);
+      
+      // Check if this is a Science or Social Science book - use Claude API
+      const isScienceOrSocialScience = subjectId && 
+        (subjectId.includes('SCI') || subjectId.includes('Science') || 
+         subjectId.includes('SS') || subjectId.includes('SOC') || subjectId.includes('Social'));
+      
+      const isValidStandard = normalizedStandardId && 
+        (normalizedStandardId === 'STD_8' || normalizedStandardId === 'STD_9' || normalizedStandardId === 'STD_10' || 
+         normalizedStandardId === '8' || normalizedStandardId === '9' || normalizedStandardId === '10');
+      
+      console.log('[RAG] processPDFToSections - isScienceOrSocialScience:', isScienceOrSocialScience);
+      console.log('[RAG] processPDFToSections - isValidStandard:', isValidStandard);
+      
+      // Use Claude API for TN Science/Social Science books (Std 8, 9, 10)
+      if (isScienceOrSocialScience && isValidStandard) {
+        console.log('[RAG] processPDFToSections - Using Claude API for TN Science/Social Science book');
+        try {
+          const { splitTNBookWithClaude } = require('./claudeSplitter');
+          console.log('[RAG] processPDFToSections - Calling splitTNBookWithClaude...');
+          sections = await splitTNBookWithClaude(text, chapterName, {
+            subjectId,
+            standardId: normalizedStandardId,
+            syllabusId,
+            bookType,
+            division,
+            term
+          });
+          console.log(`[RAG] processPDFToSections - Claude API returned ${sections.length} sections`);
+          
+          // Normalize section format
+          sections = sections.map(s => ({
+            sectionNumber: s.sectionNumber,
+            sectionTitle: s.sectionTitle || s.title,
+            sectionType: s.sectionType || 'content',
+            content: s.content
+          }));
+          
+          console.log('[RAG] processPDFToSections - Proceeding to chunk processing with Claude API sections');
+          
+          // Step 1: Extract unique units from sections
+          const unitMap = {};
+          
+          sections.forEach(section => {
+            const sectionNum = section.sectionNumber;
+            const unitMatch = sectionNum.match(/^(\d+)/);
+            
+            if (unitMatch) {
+              const unitNum = parseInt(unitMatch[1]);
+              
+              // Extract unit
+              if (!unitMap[unitNum]) {
+                let unitTitle = `Unit ${unitNum}`;
+                if ((section.sectionNumber === `${unitNum}.0` || section.sectionNumber === `${unitNum}`) && section.sectionTitle) {
+                  unitTitle = section.sectionTitle;
+                }
+                unitMap[unitNum] = {
+                  unitNumber: unitNum,
+                  unitTitle: unitTitle
+                };
+              }
+            }
+          });
+          
+          const units = Object.values(unitMap).sort((a, b) => a.unitNumber - b.unitNumber);
+          
+          console.log(`[RAG] Extracted ${units.length} units from Claude API sections`);
+          console.log('[RAG] Units:', units.map(u => ({
+            unitNumber: u.unitNumber,
+            unitTitle: u.unitTitle
+          })));
+          
+          // Step 2: Create unit chapters (division is passed from request, not created here)
+          const hierarchyService = require('../file-hierarchy/service');
+          const unitChapters = [];
+          
+          for (const unit of units) {
+            try {
+              const unitChapterName = unit.unitTitle;
+              const unitDocumentId = documentId || chapterId;
+              
+              const unitChapterData = await hierarchyService.createChapter(
+                subjectId,
+                unitChapterName,
+                `${unitDocumentId}_unit_${unit.unitNumber}`,
+                syllabusId,
+                normalizedStandardId,
+                division || null,
+                dbTerm
+              );
+              
+              unitChapters.push({
+                unitNumber: unit.unitNumber,
+                chapterId: unitChapterData.chapterId,
+                chapterName: unitChapterName
+              });
+              
+              console.log(`[RAG] Created unit chapter: "${unitChapterName}" (${unitChapterData.chapterId})`);
+            } catch (e) {
+              console.warn(`[RAG] Could not create unit chapter for Unit ${unit.unitNumber}:`, e.message);
+              unitChapters.push({
+                unitNumber: unit.unitNumber,
+                chapterId: `${documentId}_unit_${unit.unitNumber}`,
+                chapterName: unit.unitTitle
+              });
+            }
+          }
+          
+          // Step 3: Update chapterId for sections based on their unit
+          sections = sections.map(section => {
+            const unitMatch = section.sectionNumber.match(/^(\d+)/);
+            if (unitMatch) {
+              const unitNum = parseInt(unitMatch[1]);
+              const unitChapter = unitChapters.find(uc => uc.unitNumber === unitNum);
+              if (unitChapter) {
+                return {
+                  ...section,
+                  chapterId: unitChapter.chapterId,
+                  division: division || null
+                };
+              }
+            }
+            return section;
+          });
+          
+          console.log('[RAG] Updated sections with unit chapter IDs and division from request');
+        } catch (claudeError) {
+          console.error('[RAG] processPDFToSections - Claude API failed:', claudeError.message);
+          throw claudeError; // Fail fast, don't fallback
+        }
+      } else {
+        // For other TN subjects (Math, English), use regex-based splitting
+        console.log('[RAG] processPDFToSections - Using regex-based splitting for TN State Board book');
+        const { splitByUnits, splitBySections } = require('./tnBoardSplitter');
 
       // Step 1: Split by units
       let units = splitByUnits(text);
@@ -196,7 +339,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
             `${unitDocumentId}_unit_${unit.unitNumber}`,
             syllabusId,
             standardId,
-            null,
+            division || null,
             dbTerm
           );
 
@@ -299,6 +442,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
               syllabusId,
               standardId,
               subjectId,
+              division,
               chunks: sectionData.chunks
             });
 
@@ -316,7 +460,11 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       }
 
       console.log(`[RAG] Successfully stored ${storedSections.length} sections from ${units.length} units`);
+      console.log('[RAG] processPDFToSections - Regex-based TN State Board processing complete');
+      
+      // Return stored sections directly - they've already been processed and stored
       return storedSections;
+      }
     } else {
       // Check if user explicitly selected AI-based splitting
       const useAIBased = splitPattern === 'ai_based';
@@ -528,6 +676,8 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           sectionNumber: chunk.sectionNumber,
           sectionTitle: chunk.sectionTitle,
           sectionType: chunk.sectionType || null,
+          chapterId: chunk.chapterId || chapterId,
+          division: chunk.division || null,
           chunks: []
         };
       }
@@ -537,7 +687,9 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     console.log('[RAG] processPDFToSections - Section map:', Object.keys(sectionMap).map(key => ({
       sectionNumber: sectionMap[key].sectionNumber,
       sectionTitle: sectionMap[key].sectionTitle,
-      sectionType: sectionMap[key].sectionType
+      sectionType: sectionMap[key].sectionType,
+      division: sectionMap[key].division,
+      chapterId: sectionMap[key].chapterId
     })));
 
     // Store each section with its chunks
@@ -553,10 +705,11 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
         });
 
         const storedSection = await storeSectionWithEmbeddings({
-          chapterId,
+          chapterId: sectionData.chapterId,
           sectionNumber: sectionData.sectionNumber,
           sectionTitle: sectionData.sectionTitle,
           sectionType: sectionData.sectionType,
+          division: sectionData.division,
           type: bookType || null,
           syllabusId,
           standardId,
@@ -564,7 +717,7 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           chunks: sectionData.chunks
         });
         storedSections.push(storedSection);
-        console.log(`[RAG] Stored section ${sectionNumber}${sectionData.sectionType ? ` (${sectionData.sectionType})` : ''} with ${sectionData.chunks.length} chunks, bookType: ${bookType}`);
+        console.log(`[RAG] Stored section ${sectionNumber}${sectionData.sectionType ? ` (${sectionData.sectionType})` : ''} with ${sectionData.chunks.length} chunks, bookType: ${bookType}, division: ${sectionData.division}`);
       } catch (sectionError) {
         console.warn(`[RAG] Warning: Could not store section ${sectionNumber}:`, sectionError.message);
       }

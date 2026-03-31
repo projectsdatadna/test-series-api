@@ -24,6 +24,7 @@ async function storeSectionWithEmbeddings(sectionData) {
       syllabusId,
       standardId,
       subjectId,
+      division = null,
       sectionType = null,
       type = null,
       chunks = []
@@ -118,6 +119,7 @@ async function storeSectionWithEmbeddings(sectionData) {
         syllabusId: syllabusId || null,
         standardId: standardId || null,
         subjectId: subjectId || null,
+        division: division || null,
         sectionType: sectionType || null,
         type: type || null,
         chunks: batch,
@@ -199,6 +201,7 @@ async function storeSectionWithEmbeddings(sectionData) {
       syllabusId: syllabusId || null,
       standardId: standardId || null,
       subjectId: subjectId || null,
+      division: division || null,
       sectionType: sectionType || null,
       type: type || null,
       totalChunks: processedChunks.length,

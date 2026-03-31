@@ -2,7 +2,7 @@
 
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
-const { PutCommand, GetCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, QueryCommand, ScanCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const {
   generateChapterId,
   generateFileId,
@@ -297,6 +297,59 @@ const createChapter = async (subjectId, chapterName, fileId, syllabusId, standar
       term
     });
 
+    const dbTerm = term || null;
+
+    // Check if a chapter already exists with the same chapterName + subjectId + standardId + syllabusId
+    const existingScan = await docClient.send(new ScanCommand({
+      TableName: TABLES.CHAPTERS,
+      FilterExpression: 'chapterName = :chapterName AND subjectId = :subjectId AND standardId = :standardId AND syllabusId = :syllabusId',
+      ExpressionAttributeValues: {
+        ':chapterName': chapterName,
+        ':subjectId': subjectId,
+        ':standardId': standardId,
+        ':syllabusId': syllabusId
+      }
+    }));
+
+    const existing = existingScan.Items && existingScan.Items[0];
+
+    if (existing) {
+      console.log('[HIERARCHY] Existing chapter found, updating:', existing.chapterId);
+
+      // Build update expression dynamically
+      let updateExpression = 'SET fileId = :fileId, linkedAt = :linkedAt';
+      const expressionAttributeValues = {
+        ':fileId': fileId,
+        ':linkedAt': new Date().toISOString()
+      };
+
+      if (division) {
+        updateExpression += ', division = :division';
+        expressionAttributeValues[':division'] = division;
+      }
+
+      if (dbTerm) {
+        updateExpression += ', #term = :term';
+        expressionAttributeValues[':term'] = dbTerm;
+      }
+
+      await docClient.send(new UpdateCommand({
+        TableName: TABLES.CHAPTERS,
+        Key: { chapterId: existing.chapterId, chapterName: existing.chapterName },
+        UpdateExpression: updateExpression,
+        ...(dbTerm ? { ExpressionAttributeNames: { '#term': 'term' } } : {}),
+        ExpressionAttributeValues: expressionAttributeValues
+      }));
+
+      const updated = { ...existing, fileId, linkedAt: expressionAttributeValues[':linkedAt'] };
+      if (division) updated.division = division;
+      if (dbTerm) updated.term = dbTerm;
+
+      console.log('[HIERARCHY] Chapter updated successfully:', existing.chapterId);
+      return updated;
+    }
+
+    // No existing chapter — create new
     const chapterId = generateChapterId();
     const item = {
       chapterId,
@@ -308,16 +361,14 @@ const createChapter = async (subjectId, chapterName, fileId, syllabusId, standar
       linkedAt: new Date().toISOString()
     };
 
-    // Add division field if provided (for 9th and 10th English: Chapters, Poems, Workbook)
     if (division) {
       item.division = division;
       console.log('[HIERARCHY] Added division to item:', division);
     }
 
-    // Add term field if provided (for TN State Board: TERM_1, TERM_2, TERM_3)
-    if (term) {
-      item.term = term;
-      console.log('[HIERARCHY] Added term to item:', term);
+    if (dbTerm) {
+      item.term = dbTerm;
+      console.log('[HIERARCHY] Added term to item:', dbTerm);
     }
 
     console.log('[HIERARCHY] Final item to be stored:', JSON.stringify(item, null, 2));
