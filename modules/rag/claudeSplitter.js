@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { splitByHeadings } = require('./textSplitter');
 
 /**
  * Call Firebase API to split book into sections using Claude
@@ -11,6 +12,11 @@ const axios = require('axios');
  */
 async function splitBookWithClaude(text, chapterName, metadata = {}) {
   try {
+    // Guard: if text is empty or too short, throw immediately
+    if (!text || text.trim().length < 100) {
+      throw new Error('Text is too short or empty for AI-based splitting. The PDF may have font encoding issues that prevent text extraction.');
+    }
+
     // Use environment variable for Firebase API URL
     const firebaseApiUrl = process.env.FIREBASE_API_URL || 'http://localhost:5001/drivingschool-630d9/us-central1/api';
 
@@ -64,13 +70,101 @@ async function splitBookWithClaude(text, chapterName, metadata = {}) {
       console.log(`[RAG]   [${idx + 1}/${sections.length}] ${s.sectionNumber}: "${s.sectionTitle || s.title || '(no title)'}" (${(s.content?.length || 0)} chars)`);
     });
 
-    // Normalize section format to match existing structure
-    const normalizedSections = sections.map(s => ({
-      sectionNumber: s.sectionNumber,
-      title: s.sectionTitle || s.title || s.sectionNumber,
-      content: s.content || '',
-      sectionType: s.sectionType || 'content'
-    }));
+    // Firebase returns section titles only — extract actual content from the original text.
+    // Strategy: use the sectionNumbers (e.g. "5.1", "5.2") returned by Firebase as regex
+    // anchors to find exact positions in the PDF text, then assign Claude's titles.
+    // This is more reliable than heading search since section numbers are unambiguous.
+    const titlesOnly = sections.every(s => !s.content || s.content.trim().length === 0);
+
+    let normalizedSections;
+
+    if (titlesOnly) {
+      console.log('[RAG] Firebase returned titles only — extracting content using section number anchors');
+
+      // Normalize line endings
+      const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+      // Check if sections have decimal section numbers (e.g. "5.1", "5.2")
+      const hasDecimalNumbers = sections.some(s => s.sectionNumber && /^\d+\.\d+/.test(s.sectionNumber));
+
+      if (hasDecimalNumbers) {
+        // Find each section number's position in the text
+        const anchors = [];
+        for (const s of sections) {
+          const sectionNumber = s.sectionNumber;
+          if (!sectionNumber) continue;
+
+          // Match the section number at the start of a line (e.g. "5.1 ..." or "5.1\n")
+          const escapedNum = sectionNumber.replace('.', '\\.');
+          const numRegex = new RegExp(`(?:^|\\n)\\s*${escapedNum}(?:\\s|\\n)`, 'g');
+          let match;
+          let bestMatch = null;
+
+          while ((match = numRegex.exec(normalizedText)) !== null) {
+            // Prefer the first occurrence that isn't in the table of contents
+            // (TOC entries are usually in the first 10% of the text)
+            const isLikelyTOC = match.index < normalizedText.length * 0.1;
+            if (!bestMatch || (!isLikelyTOC && bestMatch.index < normalizedText.length * 0.1)) {
+              bestMatch = match;
+            }
+          }
+
+          if (bestMatch) {
+            anchors.push({
+              sectionNumber,
+              title: s.sectionTitle || s.title || sectionNumber,
+              index: bestMatch.index,
+              headerEnd: bestMatch.index + bestMatch[0].length
+            });
+            console.log(`[RAG] Found section ${sectionNumber} at index ${bestMatch.index}`);
+          } else {
+            console.warn(`[RAG] Section number ${sectionNumber} not found in text`);
+          }
+        }
+
+        // Sort by position in text
+        anchors.sort((a, b) => a.index - b.index);
+
+        // Extract content between anchors
+        normalizedSections = anchors.map((anchor, idx) => {
+          const contentStart = anchor.headerEnd;
+          const contentEnd = idx < anchors.length - 1 ? anchors[idx + 1].index : normalizedText.length;
+          const content = normalizedText.substring(contentStart, contentEnd).trim();
+
+          console.log(`[RAG] Section ${anchor.sectionNumber} "${anchor.title}": ${content.length} chars`);
+          return {
+            sectionNumber: anchor.sectionNumber,
+            title: anchor.title,
+            content,
+            sectionType: 'content'
+          };
+        });
+      } else {
+        // No decimal section numbers — fall back to heading-based extraction
+        console.log('[RAG] No decimal section numbers — falling back to splitByHeadings');
+        const sectionTitles = sections.map(s => s.sectionTitle || s.title || '').filter(Boolean);
+        const headingSections = splitByHeadings(text, sectionTitles);
+        normalizedSections = headingSections.map((s, idx) => ({
+          sectionNumber: sections[idx]?.sectionNumber || s.sectionNumber,
+          title: sections[idx]?.sectionTitle || sections[idx]?.title || s.sectionTitle || s.title,
+          content: s.content || '',
+          sectionType: 'content'
+        }));
+      }
+
+      console.log('[RAG] Content extracted:');
+      normalizedSections.forEach((s, idx) => {
+        console.log(`[RAG]   [${idx + 1}] ${s.sectionNumber}: "${s.title}" (${s.content.length} chars)`);
+      });
+    } else {
+      // Firebase returned content directly — use as-is
+      normalizedSections = sections.map(s => ({
+        sectionNumber: s.sectionNumber,
+        title: s.sectionTitle || s.title || s.sectionNumber,
+        content: s.content || '',
+        sectionType: s.sectionType || 'content'
+      }));
+    }
 
     console.log('[RAG] Normalized sections for storage');
     console.log('========== CLAUDE API SPLITTING SUCCESS ==========\n');
