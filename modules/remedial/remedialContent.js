@@ -96,7 +96,19 @@ router.get('/history', async (req, res) => {
 
 router.put('/update-visual-image', async (req, res) => {
   try {
-    const { contentId, visualIndex, imageUrl, imageId } = req.body;
+    const {
+      contentId,
+      visualIndex,
+      imageUrl,
+      imageId,
+      // ── New fields ──────────────────────────────────
+      diagramHTML   = null,
+      isNonEnglish  = false,
+      title         = '',
+      labels        = [],
+      langCode      = 'en',
+      language      = 'English',
+    } = req.body;
 
     if (!contentId || visualIndex === undefined || !imageUrl) {
       return res.status(400).json({
@@ -120,10 +132,21 @@ router.put('/update-visual-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No visualSuggestions found' });
     }
 
-    // Patch only the specific visual's generatedImageUrl
+    // ── Patch the specific visual with ALL image fields ──────────
     const updatedVisuals = visualSuggestions.map((v, i) =>
       i === visualIndex
-        ? { ...v, generatedImageUrl: imageUrl, generatedImageId: imageId || null }
+        ? {
+            ...v,
+            generatedImageUrl: imageUrl,
+            generatedImageId:  imageId  || null,
+            // ── New fields stored here ────────────────────────
+            diagramHTML:       diagramHTML  || null,
+            isNonEnglish:      isNonEnglish ?? false,
+            imageTitle:        title        || '',
+            imageLabels:       Array.isArray(labels) ? labels : [],
+            langCode:          langCode     || 'en',
+            language:          language     || 'English',
+          }
         : v
     );
 
