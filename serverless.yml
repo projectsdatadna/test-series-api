@@ -6,7 +6,7 @@ provider:
   region: ap-south-1
   stage: ${opt:stage, 'dev'}
   memorySize: 512
-  timeout: 30
+  timeout: 29
   environment:
     NODE_ENV: ${self:provider.stage}
     CLAUDE_API_KEY: ${env:CLAUDE_API_KEY, ''}
@@ -85,7 +85,7 @@ functions:
     handler: index.handler
     description: Express.js REST API for Course Management
     memorySize: 1024
-    timeout: 300
+    timeout: 29
     events:
       - httpApi:
           path: /{proxy+}
@@ -323,21 +323,23 @@ resources:
             KeyType: HASH
 
 package:
-  exclude:
-    - .git/**
-    - .gitignore
-    - README.md
-    - .env
-    - .env.example
-    - node_modules/.bin/**
-    - node_modules/*/test/**
-    - node_modules/*/tests/**
-    - node_modules/*/.github/**
-    - .vscode/**
-    - .idea/**
-    - coverage/**
-    - dist/**
-    - build/**
+  individually: false
+  patterns:
+    - '!.git/**'
+    - '!.gitignore'
+    - '!README.md'
+    - '!.env'
+    - '!.env.example'
+    - '!node_modules/.bin/**'
+    - '!node_modules/*/test/**'
+    - '!node_modules/*/tests/**'
+    - '!node_modules/*/.github/**'
+    - '!node_modules/**/*.md'
+    - '!node_modules/**/*.ts'
+    - '!node_modules/**/dist-es/**'     # Exclude ES module builds (use CJS)
+    - '!node_modules/**/*.map'
+    - '!.vscode/**'
+    - '!coverage/**'
 
 plugins:
   - serverless-offline

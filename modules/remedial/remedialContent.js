@@ -563,4 +563,48 @@ router.delete('/delete-puzzle-clue', async (req, res) => {
   }
 });
 
+
+// Add this to your Lambda routes file (the AWS backend)
+router.put('/update-quiz-question-image', async (req, res) => {
+  try {
+    const {
+      contentId, questionId, imageUrl, imageId,
+      diagramHTML = null, isNonEnglish = false,
+      title = '', labels = [], langCode = 'en', language = 'English',
+    } = req.body;
+
+    if (!contentId || questionId === undefined || !imageUrl) {
+      return res.status(400).json({ success: false, error: 'contentId, questionId, imageUrl required' });
+    }
+
+    const getResult = await ddb.send(new GetCommand({ TableName: TABLE, Key: { contentId } }));
+    if (!getResult.Item) return res.status(404).json({ success: false, error: 'Content not found' });
+
+    const questions = getResult.Item.contentData?.quiz;
+    if (!Array.isArray(questions)) return res.status(400).json({ success: false, error: 'No quiz questions found' });
+
+    const updatedQuestions = questions.map(q =>
+      q.id === questionId
+        ? { ...q, imageUrl, imageId: imageId || null, diagramHTML: diagramHTML || null,
+            isNonEnglish: isNonEnglish ?? false, imageTitle: title || '',
+            imageLabels: Array.isArray(labels) ? labels : [],
+            langCode: langCode || 'en', language: language || 'English' }
+        : q
+    );
+
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { contentId },
+      UpdateExpression: 'SET contentData.#quiz = :q, updatedAt = :t',
+      ExpressionAttributeNames: { '#quiz': 'quiz' },
+      ExpressionAttributeValues: { ':q': updatedQuestions, ':t': new Date().toISOString() },
+    }));
+
+    res.json({ success: true, message: 'Quiz question image saved' });
+  } catch (error) {
+    console.error('Error saving quiz question image:', error);
+    res.status(500).json({ success: false, error: 'Failed to save quiz question image' });
+  }
+});
+
 module.exports = router;
