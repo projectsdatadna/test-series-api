@@ -1050,10 +1050,52 @@ async function splitTextWithLangChain(text, chunkSize = null, chunkOverlap = nul
   }
 }
 
-async function createChunksForSection(text, sectionNumber, sectionTitle, sectionType = null, chapterId = null, division = null) {
-  console.log(`[RAG] createChunksForSection - START for section ${sectionNumber}, sectionType: ${sectionType}, chapterId: ${chapterId}, division: ${division}`);
+/**
+ * Split text based on token count (~2000 tokens per chunk)
+ * Used for direct_upload pattern to create chunks without structural splitting
+ * Estimates tokens using character count (rough approximation: 1 token ≈ 4 characters)
+ * 
+ * @param {string} text - The text to split
+ * @param {number} targetTokens - Target tokens per chunk (default: 2000)
+ * @returns {Promise<Array>} Array of text chunks
+ */
+async function splitTextByTokenCount(text, targetTokens = 2000) {
   try {
-    const chunks = await splitTextWithLangChain(text);
+    console.log(`[RAG] splitTextByTokenCount - START with targetTokens: ${targetTokens}`);
+    
+    // Rough token estimation: 1 token ≈ 4 characters
+    // For safety, use 3.5 characters per token (more conservative)
+    const CHARS_PER_TOKEN = 3.5;
+    const targetChunkSize = Math.floor(targetTokens * CHARS_PER_TOKEN);
+    const overlapSize = Math.floor(targetChunkSize * 0.1); // 10% overlap
+    
+    console.log(`[RAG] splitTextByTokenCount - Calculated chunkSize: ${targetChunkSize} chars, overlap: ${overlapSize} chars`);
+    
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: targetChunkSize,
+      chunkOverlap: overlapSize,
+      separators: ['\n\n', '\n', ' ', '']
+    });
+
+    const chunks = await splitter.splitText(text);
+    
+    console.log(`[RAG] splitTextByTokenCount - Created ${chunks.length} chunks`);
+    console.log(`[RAG] splitTextByTokenCount - Chunk sizes: min=${Math.min(...chunks.map(c => c.length))}, max=${Math.max(...chunks.map(c => c.length))}, avg=${Math.round(chunks.reduce((a, c) => a + c.length, 0) / chunks.length)}`);
+    
+    return chunks;
+  } catch (error) {
+    console.error('[RAG] Error splitting text by token count:', error.message);
+    throw error;
+  }
+}
+
+async function createChunksForSection(text, sectionNumber, sectionTitle, sectionType = null, chapterId = null, division = null, useTokenBasedChunking = false) {
+  console.log(`[RAG] createChunksForSection - START for section ${sectionNumber}, sectionType: ${sectionType}, chapterId: ${chapterId}, division: ${division}, useTokenBasedChunking: ${useTokenBasedChunking}`);
+  try {
+    // Use token-based chunking for direct_upload, otherwise use character-based chunking
+    const chunks = useTokenBasedChunking 
+      ? await splitTextByTokenCount(text, 2000)  // ~2000 tokens per chunk
+      : await splitTextWithLangChain(text);
 
     // Verify no content was lost during chunking
     const totalChunkLength = chunks.reduce((sum, c) => sum + c.length, 0);
@@ -1073,7 +1115,7 @@ async function createChunksForSection(text, sectionNumber, sectionTitle, section
       chunkIndex: index
     }));
 
-    console.log(`[RAG] createChunksForSection - Created ${result.length} chunks for section ${sectionNumber}, sectionType: ${sectionType}, division: ${division}`);
+    console.log(`[RAG] createChunksForSection - Created ${result.length} chunks for section ${sectionNumber}, sectionType: ${sectionType}, division: ${division}, useTokenBasedChunking: ${useTokenBasedChunking}`);
     console.log('[RAG] createChunksForSection - First chunk:', {
       sectionNumber: result[0]?.sectionNumber,
       sectionType: result[0]?.sectionType,
@@ -1095,7 +1137,8 @@ async function processSectionsToChunks(sections) {
       sectionTitle: s.title || s.sectionTitle,
       sectionType: s.sectionType,
       chapterId: s.chapterId,
-      division: s.division
+      division: s.division,
+      useTokenBasedChunking: s.useTokenBasedChunking
     })));
 
     const allChunks = [];
@@ -1105,7 +1148,8 @@ async function processSectionsToChunks(sections) {
         sectionNumber: section.sectionNumber,
         sectionType: section.sectionType,
         chapterId: section.chapterId,
-        division: section.division
+        division: section.division,
+        useTokenBasedChunking: section.useTokenBasedChunking
       });
 
       const sectionChunks = await createChunksForSection(
@@ -1114,7 +1158,8 @@ async function processSectionsToChunks(sections) {
         section.title || section.sectionTitle,
         section.sectionType || null,
         section.chapterId || null,
-        section.division || null
+        section.division || null,
+        section.useTokenBasedChunking || false  // Pass the flag
       );
 
       console.log('[RAG] processSectionsToChunks - Created chunks for section:', {
@@ -1648,6 +1693,7 @@ module.exports = {
   splitTNMathBook,
   splitTNScienceBook,
   splitTextWithLangChain,
+  splitTextByTokenCount,
   createChunksForSection,
   processSectionsToChunks,
   extractTextWithPageInfo,

@@ -27,7 +27,13 @@ async function storeSectionWithEmbeddings(sectionData) {
       division = null,
       sectionType = null,
       type = null,
-      chunks = []
+      chunks = [],
+      // College-specific fields
+      isCollegeEducation = false,
+      departmentId = null,
+      semesterId = null,
+      subject = null,
+      collegeChapterName = null
     } = sectionData;
 
     console.log(`[RAG] storeSectionWithEmbeddings - START for section ${sectionNumber}`);
@@ -36,7 +42,11 @@ async function storeSectionWithEmbeddings(sectionData) {
       sectionTitle,
       sectionType,
       type,
-      chunkCount: chunks.length
+      chunkCount: chunks.length,
+      isCollegeEducation,
+      departmentId,
+      semesterId,
+      subject
     });
 
     if (!chapterId || !sectionNumber || !sectionTitle) {
@@ -116,9 +126,10 @@ async function storeSectionWithEmbeddings(sectionData) {
         sectionTitle: chunkBatches.length > 1
           ? `${sectionTitle} (Part ${batchIndex + 1}/${chunkBatches.length})`
           : sectionTitle,
-        syllabusId: syllabusId || null,
-        standardId: standardId || null,
-        subjectId: subjectId || null,
+        // For college education, use a placeholder for syllabusId to satisfy GSI constraint
+        syllabusId: syllabusId || (isCollegeEducation ? 'COLLEGE' : 'SCHOOL'),
+        standardId: standardId || (isCollegeEducation ? departmentId : null),
+        subjectId: subjectId || subject || null,
         division: division || null,
         sectionType: sectionType || null,
         type: type || null,
@@ -127,7 +138,13 @@ async function storeSectionWithEmbeddings(sectionData) {
         batchIndex: batchIndex,
         totalBatches: chunkBatches.length,
         createdAt: timestamp,
-        updatedAt: timestamp
+        updatedAt: timestamp,
+        // College-specific metadata
+        isCollegeEducation: isCollegeEducation,
+        departmentId: departmentId || null,
+        semesterId: semesterId || null,
+        subject: subject || null,
+        collegeChapterName: collegeChapterName || null
       };
 
       itemsToWrite.push(item);
@@ -198,9 +215,9 @@ async function storeSectionWithEmbeddings(sectionData) {
       chapterId,
       sectionNumber,
       sectionTitle,
-      syllabusId: syllabusId || null,
-      standardId: standardId || null,
-      subjectId: subjectId || null,
+      syllabusId: syllabusId || (isCollegeEducation ? 'COLLEGE' : 'SCHOOL'),
+      standardId: standardId || (isCollegeEducation ? departmentId : null),
+      subjectId: subjectId || subject || null,
       division: division || null,
       sectionType: sectionType || null,
       type: type || null,
@@ -208,7 +225,13 @@ async function storeSectionWithEmbeddings(sectionData) {
       totalBatches: chunkBatches.length,
       storedBatches: successCount,
       createdAt: timestamp,
-      updatedAt: timestamp
+      updatedAt: timestamp,
+      // College-specific metadata
+      isCollegeEducation: isCollegeEducation,
+      departmentId: departmentId || null,
+      semesterId: semesterId || null,
+      subject: subject || null,
+      collegeChapterName: collegeChapterName || null
     };
   } catch (error) {
     console.error('[RAG] Error storing section with embeddings:', error.message);

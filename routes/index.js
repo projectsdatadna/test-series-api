@@ -44,6 +44,7 @@ const fileHierarchyRoutes = require("../modules/file-hierarchy/routes");
 const bookUploadRoutes = require("../modules/book-upload/routes");
 const adaptiveContentLibraryRoutes = require("../modules/adaptive-content-library/routes");
 const ragRoutes = require('../modules/rag/routes');
+const collegeHierarchyRoutes = require("../modules/college-hierarchy/routes");
 
 const schoolRoutes = require("../modules/school/routes");
 const teacherRoutes = require("../modules/teacher/teacherRoutes");
@@ -77,6 +78,7 @@ function registerRoutes(app) {
   app.use('/chapters', chaptersRoutes);
   app.use('/sections', sectionsRoutes);
   app.use('/hierarchy', fileHierarchyRoutes); // File hierarchy with Syllabus/Standards/Subjects/Chapters/BookFiles
+  app.use('/hierarchy/college', collegeHierarchyRoutes); // College hierarchy routes
 
   // ============ CONTENT MANAGEMENT ============
   app.use('/materials', materialsRoutes);

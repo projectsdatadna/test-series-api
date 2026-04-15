@@ -70,7 +70,13 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       sectionTitles,
       isTNStateBoard = false,
       term,
-      unitSectionTitles
+      unitSectionTitles,
+      // College-specific fields
+      isCollegeEducation = false,
+      departmentId,
+      semesterId,
+      subject,
+      sectionTitle
     } = metadata;
 
     // Convert term format from "Term I" to "TERM_1" for database storage
@@ -96,7 +102,12 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       bookType,
       splitPattern,
       isTNStateBoard,
-      term
+      term,
+      isCollegeEducation,
+      departmentId,
+      semesterId,
+      subject,
+      sectionTitle
     });
 
     if (!chapterId) {
@@ -607,6 +618,39 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
             sections = splitByManualAnchors(text, defaultAnchors);
             break;
 
+          case 'direct_upload':
+            console.log(`[RAG] Using direct_upload strategy - no structural splitting, token-based chunking only`);
+            // For direct upload, create a single section with the entire text
+            // Chunking will be done by token count (~2000 tokens per chunk)
+            
+            // For college education, use sectionTitle; for school, use chapterName
+            const sectionName = isCollegeEducation ? (sectionTitle || chapterName || 'Content') : (chapterName || 'Content');
+            
+            sections = [{
+              sectionNumber: '1',
+              title: sectionName,
+              sectionTitle: sectionName,
+              content: text,
+              sectionType: 'content',
+              useTokenBasedChunking: true,  // Flag to use token-based chunking
+              // College-specific metadata
+              isCollegeEducation: isCollegeEducation,
+              departmentId: departmentId || null,
+              semesterId: semesterId || null,
+              subject: subject || null,
+              collegeChapterName: chapterName || null
+            }];
+            
+            console.log(`[RAG] Direct upload section created:`, {
+              sectionName,
+              isCollegeEducation,
+              departmentId,
+              semesterId,
+              subject,
+              collegeChapterName: chapterName
+            });
+            break;
+
           default:
             console.log(`[RAG] Unknown split pattern '${splitPattern}', defaulting to regex_based`);
             sections = splitBySections(text);
@@ -622,7 +666,8 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
     })));
 
     // SPECIAL CASE: If only one section found, use chapter name as section title
-    if (sections.length === 1 && chapterName) {
+    // BUT: For college education, keep the sectionTitle as provided
+    if (sections.length === 1 && chapterName && !isCollegeEducation) {
       console.log(`[RAG] Only one section found (${sections.length}), chapterName available: "${chapterName}"`);
       console.log(`[RAG] Current section title: "${sections[0].title || sections[0].sectionTitle}"`);
 
@@ -642,7 +687,10 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
       console.log(`[RAG] Updated section title to: "${chapterName}"`);
       console.log(`[RAG] Verification - section.title: "${sections[0].title}", section.sectionTitle: "${sections[0].sectionTitle}"`);
     } else if (sections.length === 1) {
-      console.log(`[RAG] Only one section found but chapterName not available. Current title: "${sections[0].title || sections[0].sectionTitle}"`);
+      console.log(`[RAG] Only one section found. Current title: "${sections[0].title || sections[0].sectionTitle}"`);
+      if (isCollegeEducation) {
+        console.log(`[RAG] College education upload - keeping sectionTitle as provided`);
+      }
     }
 
     // Process sections to create chunks
@@ -714,7 +762,13 @@ async function processPDFToSections(pdfBuffer, metadata = {}) {
           syllabusId,
           standardId,
           subjectId,
-          chunks: sectionData.chunks
+          chunks: sectionData.chunks,
+          // College-specific metadata
+          isCollegeEducation: isCollegeEducation,
+          departmentId: departmentId || null,
+          semesterId: semesterId || null,
+          subject: subject || null,
+          collegeChapterName: chapterName || null
         });
         storedSections.push(storedSection);
         console.log(`[RAG] Stored section ${sectionNumber}${sectionData.sectionType ? ` (${sectionData.sectionType})` : ''} with ${sectionData.chunks.length} chunks, bookType: ${bookType}, division: ${sectionData.division}`);

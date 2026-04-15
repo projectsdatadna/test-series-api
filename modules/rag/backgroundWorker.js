@@ -57,7 +57,13 @@ async function processJob(job) {
       sectionTitles: job.sectionTitles || null,
       isTNStateBoard: job.isTNStateBoard || false,
       term: job.term || null,
-      unitSectionTitles: job.unitSectionTitles || null
+      unitSectionTitles: job.unitSectionTitles || null,
+      // College-specific fields
+      isCollegeEducation: job.isCollegeEducation || false,
+      departmentId: job.departmentId || null,
+      semesterId: job.semesterId || null,
+      subject: job.subject || null,
+      sectionTitle: job.sectionTitle || null
     });
 
     console.log(`[RAG-WORKER] Created ${storedSections.length} sections with embeddings`);

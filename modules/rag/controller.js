@@ -162,7 +162,12 @@ async function batchProcessFromS3(req, res) {
         splitPattern,
         sectionTitles,
         term,
-        unitSectionTitles
+        unitSectionTitles,
+        // College-specific fields
+        departmentId,
+        semesterId,
+        subject,
+        sectionTitle
       } = file;
 
       // Validate required fields
@@ -344,7 +349,7 @@ async function batchProcessFromS3(req, res) {
         }
 
         // Validate splitPattern
-        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
+        const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based', 'direct_upload'];
         if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
           results.push({
             fileName,
@@ -404,7 +409,13 @@ async function batchProcessFromS3(req, res) {
           sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
           isTNStateBoard: isTNStateBoard,
           term: term || null,
-          unitSectionTitles: unitSectionTitles || null
+          unitSectionTitles: unitSectionTitles || null,
+          // College-specific fields
+          isCollegeEducation: departmentId && semesterId && subject,
+          departmentId: departmentId || null,
+          semesterId: semesterId || null,
+          subject: subject || null,
+          sectionTitle: sectionTitle || null
         });
 
         const splitStrategyUsed = (pageRanges && Array.isArray(pageRanges) && pageRanges.length > 0)
@@ -759,7 +770,7 @@ async function processRAGFileFromS3(req, res) {
     }
 
     // Validate splitPattern if provided
-    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
+    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based', 'direct_upload'];
     if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
       return res.status(400).json({
         success: false,
@@ -1228,7 +1239,12 @@ async function queueProcessFromS3(req, res) {
       splitPattern,
       sectionTitles,
       term,
-      unitSectionTitles
+      unitSectionTitles,
+      // College-specific fields
+      departmentId,
+      semesterId,
+      subject,
+      sectionTitle
     } = req.body;
 
     // Validate required fields
@@ -1238,6 +1254,11 @@ async function queueProcessFromS3(req, res) {
         message: 'fileKey and documentId are required'
       });
     }
+
+    // Detect if this is a college education upload
+    const isCollegeEducation = departmentId && semesterId && subject && (chapterName || sectionTitle);
+
+    console.log('[RAG] queueProcessFromS3 - Education type:', isCollegeEducation ? 'College' : 'School');
 
     // Map bookType to division if provided
     let finalDivision = division;
@@ -1357,7 +1378,7 @@ async function queueProcessFromS3(req, res) {
     }
 
     // Validate splitPattern if provided
-    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based'];
+    const validSplitPatterns = ['regex_based', 'heading_based', 'chapter_based', 'manual_anchors', 'ai_based', 'direct_upload'];
     if (splitPattern && !validSplitPatterns.includes(splitPattern)) {
       return res.status(400).json({
         success: false,
@@ -1393,12 +1414,21 @@ async function queueProcessFromS3(req, res) {
       splitPattern: splitPattern || 'regex_based',
       sectionTitles: sectionTitles && Array.isArray(sectionTitles) && sectionTitles.length > 0 ? sectionTitles : null,
       unitSectionTitles: unitSectionTitles || null,
-      isTNStateBoard: isTNStateBoard
+      isTNStateBoard: isTNStateBoard,
+      // College-specific fields
+      isCollegeEducation: isCollegeEducation,
+      departmentId: departmentId || null,
+      semesterId: semesterId || null,
+      subject: subject || null,
+      sectionTitle: sectionTitle || null
     };
 
     const { jobId, status } = await createJob(jobData);
 
     console.log(`[RAG] File queued for processing: ${fileName} (jobId: ${jobId})`);
+    if (isCollegeEducation) {
+      console.log(`[RAG] College Education Upload - Department: ${departmentId}, Semester: ${semesterId}, Subject: ${subject}, Chapter: ${chapterName || sectionTitle}`);
+    }
 
     return res.status(202).json({
       success: true,
