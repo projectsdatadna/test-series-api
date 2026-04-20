@@ -24,6 +24,8 @@ const headers = {
 const cognito = new AWS.CognitoIdentityServiceProvider();
 const sns = new AWS.SNS();
 
+const profilesController = require('../../newProfiles/controller');
+
 const USER_POOL_ID = process.env.USER_POOL_ID;
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
@@ -52,6 +54,21 @@ const generateSecretHash = (username, clientId, clientSecret) => {
     .createHmac('sha256', clientSecret)
     .update(username + clientId)
     .digest('base64');
+};
+
+const createSkeletonProfile = async (userId, email, phoneNumber = null) => {
+  try {
+    await profilesController.createProfile({
+      body: JSON.stringify({ 
+        userId, 
+        email:  email       || null,
+        phone:  phoneNumber || null   // ← pass phone into profile too
+      })
+    });
+    console.log('[Auth] Skeleton profile created for userId:', userId);
+  } catch (err) {
+    console.error('[Auth] Failed to create skeleton profile:', err.message);
+  }
 };
 
 // 1. Email Sign Up
@@ -212,6 +229,8 @@ async function emailsignUp(event) {
       TableName: SESSIONS_TABLE,
       Item: userData
     }).promise();
+
+    await createSkeletonProfile(userId, email);
 
     return createResponse(201, {
       success: true,
@@ -408,6 +427,8 @@ async function phoneSignUp(event){
       TableName: SESSIONS_TABLE,
       Item: userData
     }).promise();
+
+    await createSkeletonProfile(userId, null, phoneNumber);
 
     return createResponse(201, {
       success: true,

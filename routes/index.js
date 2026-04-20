@@ -8,6 +8,7 @@ const authRoutes = require("../modules/auth/routes");
 const userRoutes = require("../modules/users/routes");
 const rolesRoutes = require("../modules/roles/routes");
 const profilesRoutes = require("../modules/profiles/routes");
+const profilesRouter = require('../modules/newProfiles/routes');
 const sessionsRoutes = require("../modules/sessions/routes");
 const auditLogsRoutes = require("../modules/audit-logs/routes");
 const enrollmentsRoutes = require("../modules/enrollments/routes");
@@ -62,6 +63,9 @@ function registerRoutes(app) {
   app.use('/users', userRoutes);
   app.use('/roles', rolesRoutes);
   app.use('/profiles', profilesRoutes);
+
+  app.use('/profile', profilesRouter);
+
   app.use('/sessions', sessionsRoutes);
 
   // ============ SYSTEM MANAGEMENT ============
