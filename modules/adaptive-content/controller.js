@@ -239,6 +239,7 @@ async function generateAdaptiveContentFromSection(req, res) {
             return res.status(200).json({
               success: true,
               images: imageRes.images,
+              htmlContent: htmlContent,
               sectionIds: finalSectionIds,
               sectionNumbers: finalSectionNumbers,
               sectionTitles: finalSectionTitles,
@@ -535,6 +536,7 @@ async function generateAdaptiveContent(req, res) {
             return res.status(200).json({
               success: true,
               images: imageRes.images,
+              htmlContent: htmlContent,
               tokenUsage: {
                 inputTokens: totalInputTokens,
                 outputTokens: totalOutputTokens,
